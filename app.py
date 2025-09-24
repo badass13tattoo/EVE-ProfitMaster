@@ -86,17 +86,11 @@ def get_jobs():
     }
     response = requests.get(verify_url, headers=headers)
     
-    # Выводим в логи полный ответ от сервера EVE
-    print("Ответ от EVE SSO:", response.json())
-
     if response.status_code != 200:
-        return jsonify({'error': f'Ошибка при верификации токена. Код: {response.status_code}'}), 401
+        return jsonify({'error': 'Ошибка при верификации токена'}), 401
 
-    try:
-        character_data = response.json()
-        character_id = character_data['characterID']
-    except (KeyError, ValueError):
-        return jsonify({'error': 'Ответ от сервера EVE не содержит characterID. Возможно, токен недействителен.'}), 401
+    character_data = response.json()
+    character_id = character_data['CharacterID']
 
     # 2. Получаем список производственных работ
     jobs_url = f'https://esi.evetech.net/latest/characters/{character_id}/industry/jobs/'
