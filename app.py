@@ -4,8 +4,12 @@ import base64
 from flask import Flask, jsonify, request, redirect, session
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
 import secrets
 import datetime
+
+# Загружаем переменные окружения из .env файла
+load_dotenv()
 
 # Настройки Flask
 app = Flask(__name__)
@@ -17,7 +21,14 @@ CORS(app)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
 
 # Настройки базы данных
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+# Получаем URL базы данных из переменных окружения
+database_url = os.environ.get('DATABASE_URL')
+
+# Заменяем postgres:// на postgresql+psycopg:// для совместимости с psycopg 3
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql+psycopg://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
