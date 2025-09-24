@@ -147,36 +147,38 @@ def add_character():
 
 @app.route('/get_jobs')
 def get_jobs():
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or 'Bearer ' not in auth_header:
-        return jsonify({'error': 'Токен авторизации не предоставлен или имеет неверный формат'}), 401
-
-    access_token = auth_header.split(' ')[1]
-
-    verify_url = 'https://login.eveonline.com/oauth/verify'
-    headers = {
-        'Authorization': f'Bearer {access_token}'
-    }
-    response = requests.get(verify_url, headers=headers)
+    # Получаем все токены из базы данных
+    users = User.query.all()
     
-    if response.status_code != 200:
-        return jsonify({'error': 'Ошибка при верификации токена'}), 401
+    if not users:
+        return jsonify({'error': 'Нет сохраненных персонажей. Пожалуйста, авторизуйтесь.'}), 404
 
-    character_data = response.json()
-    character_id = character_data['CharacterID']
+    all_jobs = []
+    
+    # Перебираем каждого персонажа и запрашиваем его работы
+    for user in users:
+        access_token = user.access_token
+        character_id = user.character_id
 
-    jobs_url = f'https://esi.evetech.net/latest/characters/{character_id}/industry/jobs/'
-    headers = {
-        'Authorization': f'Bearer {access_token}'
-    }
-    
-    response = requests.get(jobs_url, headers=headers)
-    
-    if response.status_code == 200:
-        jobs_data = response.json()
-        return jsonify(jobs_data)
-    else:
-        return jsonify({'error': f'Не удалось получить данные о работах. Код ошибки: {response.status_code}'}), response.status_code
+        # Получаем список производственных работ
+        jobs_url = f'https://esi.evetech.net/latest/characters/{character_id}/industry/jobs/'
+        headers = {
+            'Authorization': f'Bearer {access_token}'
+        }
+        
+        response = requests.get(jobs_url, headers=headers)
+        
+        if response.status_code == 200:
+            jobs_data = response.json()
+            # Добавляем данные о персонаже в каждую работу
+            for job in jobs_data:
+                job['character_name'] = user.character_name
+            all_jobs.extend(jobs_data)
+        else:
+            print(f"Ошибка при получении данных для персонажа {user.character_name}: {response.status_code}")
+            # Пока что не останавливаемся, просто пропускаем этого персонажа
+
+    return jsonify(all_jobs)
 
 if __name__ == '__main__':
     app.run(debug=True)
