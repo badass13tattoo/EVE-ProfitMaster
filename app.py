@@ -26,13 +26,15 @@ db = SQLAlchemy(app)
 # ====================================================================
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    character_id = db.Column(db.Integer, unique=True, nullable=False)
-    character_name = db.Column(db.String(80), nullable=False)
-    access_token = db.Column(db.String(200), nullable=False)
-    refresh_token = db.Column(db.String(200), nullable=False)
+    character_id = db.Column(db.BigInteger, unique=True, nullable=False)
+    character_name = db.Column(db.String(255), nullable=False)  # 255 символов должно быть достаточно для имени персонажа
+    access_token = db.Column(db.Text, nullable=False) # Используем db.Text
+    refresh_token = db.Column(db.Text, nullable=False) # Используем db.Text
 
     def __repr__(self):
         return f'<User {self.character_name}>'
+
+
 
 with app.app_context():
     db.create_all()
