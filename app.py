@@ -73,11 +73,11 @@ def callback():
 
 @app.route('/get_jobs')
 def get_jobs():
-    authorization_header = request.headers.get('Authorization')
-    if not authorization_header or 'Bearer' not in authorization_header:
-        return jsonify({'error': 'Missing or malformed Authorization header'}), 401
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or 'Bearer ' not in auth_header:
+        return jsonify({'error': 'Токен авторизации не предоставлен или имеет неверный формат'}), 401
 
-    access_token = authorization_header.split(' ')[1]
+    access_token = auth_header.split(' ')[1]
 
     # 1. Получаем ID персонажа
     verify_url = 'https://login.eveonline.com/oauth/verify'
@@ -86,11 +86,17 @@ def get_jobs():
     }
     response = requests.get(verify_url, headers=headers)
     
-    if response.status_code != 200:
-        return jsonify({'error': 'Ошибка при верификации токена'}), 401
+    # Выводим в логи полный ответ от сервера EVE
+    print("Ответ от EVE SSO:", response.json())
 
-    character_data = response.json()
-    character_id = character_data['characterID']
+    if response.status_code != 200:
+        return jsonify({'error': f'Ошибка при верификации токена. Код: {response.status_code}'}), 401
+
+    try:
+        character_data = response.json()
+        character_id = character_data['characterID']
+    except (KeyError, ValueError):
+        return jsonify({'error': 'Ответ от сервера EVE не содержит characterID. Возможно, токен недействителен.'}), 401
 
     # 2. Получаем список производственных работ
     jobs_url = f'https://esi.evetech.net/latest/characters/{character_id}/industry/jobs/'
