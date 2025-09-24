@@ -32,6 +32,7 @@ def login():
     scopes = 'esi-calendar.respond_calendar_events.v1 esi-skills.read_skills.v1 esi-wallet.read_character_wallet.v1 esi-assets.read_assets.v1 esi-planets.manage_planets.v1 esi-markets.structure_markets.v1 esi-industry.read_character_jobs.v1 esi-markets.read_character_orders.v1 esi-characters.read_blueprints.v1'
     auth_url = (f"{AUTH_URL}?response_type=code&redirect_uri={CALLBACK_URL}"
                 f"&client_id={CLIENT_ID}&scope={scopes}&state={state}") # Добавили state
+    print("Отправляем пользователя на URL", auth_url)
     return redirect(auth_url)
 
 @app.route('/callback')
