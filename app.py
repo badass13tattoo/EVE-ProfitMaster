@@ -54,12 +54,10 @@ def home():
 def login():
     base_url = 'https://login.eveonline.com/v2/oauth/authorize'
     scopes = [
-        'esi-industry.read_character_jobs.v1',
-        'esi-universe.read_names.v1'
+        'esi-industry.read_character_jobs.v1'
     ]
     scopes_str = ' '.join(scopes)
 
-    # Генерируем уникальный параметр state
     state = secrets.token_urlsafe(16)
     session['oauth_state'] = state
 
@@ -68,7 +66,7 @@ def login():
         'redirect_uri': CALLBACK_URL,
         'client_id': CLIENT_ID,
         'scope': scopes_str,
-        'state': state  # Добавляем state в запрос
+        'state': state
     }
     auth_url = requests.Request('GET', base_url, params=params).prepare().url
     return redirect(auth_url)
@@ -78,11 +76,9 @@ def callback():
     code = request.args.get('code')
     state = request.args.get('state')
     
-    # Проверяем state для безопасности
     if state != session.get('oauth_state'):
         return jsonify({'error': 'Неверный параметр state'}), 400
     
-    # Очищаем сессию
     session.pop('oauth_state', None)
 
     if not code:
@@ -149,29 +145,38 @@ def add_character():
 
     return redirect(f"http://localhost:8080/?token={access_token}")
 
+@app.route('/get_jobs')
+def get_jobs():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or 'Bearer ' not in auth_header:
+        return jsonify({'error': 'Токен авторизации не предоставлен или имеет неверный формат'}), 401
 
-@app.route('/login')
-def login():
-    base_url = 'https://login.eveonline.com/v2/oauth/authorize'
-    
-    # Оставляем только те разрешения, которые действительно нужны
-    scopes = [
-        'esi-industry.read_character_jobs.v1'
-    ]
-    scopes_str = ' '.join(scopes)
+    access_token = auth_header.split(' ')[1]
 
-    state = secrets.token_urlsafe(16)
-    session['oauth_state'] = state
-
-    params = {
-        'response_type': 'code',
-        'redirect_uri': CALLBACK_URL,
-        'client_id': CLIENT_ID,
-        'scope': scopes_str,
-        'state': state
+    verify_url = 'https://login.eveonline.com/oauth/verify'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
     }
-    auth_url = requests.Request('GET', base_url, params=params).prepare().url
-    return redirect(auth_url)
+    response = requests.get(verify_url, headers=headers)
+    
+    if response.status_code != 200:
+        return jsonify({'error': 'Ошибка при верификации токена'}), 401
+
+    character_data = response.json()
+    character_id = character_data['CharacterID']
+
+    jobs_url = f'https://esi.evetech.net/latest/characters/{character_id}/industry/jobs/'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    
+    response = requests.get(jobs_url, headers=headers)
+    
+    if response.status_code == 200:
+        jobs_data = response.json()
+        return jsonify(jobs_data)
+    else:
+        return jsonify({'error': f'Не удалось получить данные о работах. Код ошибки: {response.status_code}'}), response.status_code
 
 if __name__ == '__main__':
     app.run(debug=True)
