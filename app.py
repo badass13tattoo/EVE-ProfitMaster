@@ -1,75 +1,145 @@
-import base64
-from flask import Flask, request, redirect, jsonify, session
-from flask_cors import CORS
+import os
 import requests
-import uuid # Добавили импорт uuid
+import base64
+from flask import Flask, jsonify, request, redirect
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
 
+# Настройки Flask
 app = Flask(__name__)
-CORS(app) # Разрешаем кросс-доменные запросы
-app.secret_key = 'some_super_secret_key' # Секретный ключ для сессий
+CORS(app)
 
-# Твои данные из Eve Online Developer
-CLIENT_ID = 'fb702fa78148403c9542f98190ec84da'
-SECRET_KEY = 'xqIz7s8drtUCchn19YRLdN44SAnNOOfTtowygNIK'
-# Твой публичный URL, который мы используем для обратного вызова
+# Настройки базы данных
+# Для локальной разработки мы будем использовать SQLite
+# sqlite:///database.db - это путь к файлу базы данных в корневой папке проекта
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+# ====================================================================
+# МОДЕЛЬ БАЗЫ ДАННЫХ
+# Это класс, который описывает таблицу "users" в базе данных
+# ====================================================================
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    character_id = db.Column(db.Integer, unique=True, nullable=False)
+    character_name = db.Column(db.String(80), nullable=False)
+    access_token = db.Column(db.String(200), nullable=False)
+    refresh_token = db.Column(db.String(200), nullable=False)
+
+    def __repr__(self):
+        return f'<User {self.character_name}>'
+
+# Создаем таблицы в базе данных, если они еще не существуют
+with app.app_context():
+    db.create_all()
+
+# Настройки EVE Online
+CLIENT_ID = os.environ.get('EVE_CLIENT_ID')
+SECRET_KEY = os.environ.get('EVE_SECRET_KEY')
 CALLBACK_URL = 'https://eve-profitmaster.onrender.com/callback'
 
-# EVE SSO endpoints
-AUTH_URL = 'https://login.eveonline.com/v2/oauth/authorize'
-TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token'
+# ====================================================================
+# МАРШРУТЫ ПРИЛОЖЕНИЯ
+# ====================================================================
 
 @app.route('/')
 def home():
-    return "Привет! Это бэкенд. Авторизируйся через фронтенд."
+    return "Привет! Это бэкенд для Eve Production Tracker. Он работает!"
 
 @app.route('/login')
 def login():
-    # Создаем уникальный state и сохраняем его в сессии
-    state = str(uuid.uuid4())
-    session['sso_state'] = state
-
-    # Создаем URL для авторизации
-    scopes = 'esi-calendar.respond_calendar_events.v1 esi-skills.read_skills.v1 esi-wallet.read_character_wallet.v1 esi-assets.read_assets.v1 esi-planets.manage_planets.v1 esi-markets.structure_markets.v1 esi-industry.read_character_jobs.v1 esi-markets.read_character_orders.v1 esi-characters.read_blueprints.v1'
-    auth_url = (f"{AUTH_URL}?response_type=code&redirect_uri={CALLBACK_URL}"
-                f"&client_id={CLIENT_ID}&scope={scopes}&state={state}") # Добавили state
-    print("Отправляем пользователя на URL", auth_url)
+    base_url = 'https://login.eveonline.com/v2/oauth/authorize'
+    scopes = [
+        'esi-industry.read_character_jobs.v1',
+        'esi-universe.read_names.v1'
+    ]
+    scopes_str = ' '.join(scopes)
+    params = {
+        'response_type': 'code',
+        'redirect_uri': CALLBACK_URL,
+        'client_id': CLIENT_ID,
+        'scope': scopes_str
+    }
+    auth_url = requests.Request('GET', base_url, params=params).prepare().url
     return redirect(auth_url)
 
 @app.route('/callback')
 def callback():
-    # Получаем state и code из запроса
     code = request.args.get('code')
-    returned_state = request.args.get('state')
-    
-    # Проверяем state на совпадение
-    if 'sso_state' not in session or returned_state != session['sso_state']:
-        return jsonify({'error': 'State mismatch'}), 400
-    
-    # Удаляем state из сессии, чтобы его нельзя было использовать повторно
-    session.pop('sso_state', None)
+    if not code:
+        return jsonify({'error': 'Код авторизации не получен'}), 400
 
-    auth_string = f"{CLIENT_ID}:{SECRET_KEY}"
-    encoded_auth_string = base64.b64encode(auth_string.encode()).decode()
+    auth_str = f"{CLIENT_ID}:{SECRET_KEY}"
+    encoded_auth_str = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
 
+    token_url = 'https://login.eveonline.com/v2/oauth/token'
     headers = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': f'Basic {encoded_auth_string}'
+        'Authorization': f'Basic {encoded_auth_str}',
+        'Content-Type': 'application/x-www-form-urlencoded'
     }
-    
     data = {
         'grant_type': 'authorization_code',
-        'code': code,
+        'code': code
     }
-    
-    response = requests.post(TOKEN_URL, data=data, headers=headers)
+    response = requests.post(token_url, headers=headers, data=data)
     token_data = response.json()
-    
+
     if 'access_token' in token_data:
         access_token = token_data['access_token']
-        redirect_url = f'http://localhost:8080/?token={access_token}'
-        return redirect(redirect_url)
+        refresh_token = token_data['refresh_token']
+        # Перенаправляем на новый маршрут для добавления персонажа
+        return redirect(f"/add_character?token={access_token}&refresh={refresh_token}")
     else:
         return jsonify({'error': 'Не удалось получить токен'}), 400
+
+# ====================================================================
+# НОВЫЙ МАРШРУТ ДЛЯ СОХРАНЕНИЯ ТОКЕНОВ В БАЗУ ДАННЫХ
+# ====================================================================
+@app.route('/add_character')
+def add_character():
+    access_token = request.args.get('token')
+    refresh_token = request.args.get('refresh')
+
+    if not access_token or not refresh_token:
+        return "Ошибка: не хватает токенов", 400
+
+    # Получаем данные о персонаже, чтобы сохранить их в базу данных
+    verify_url = 'https://login.eveonline.com/oauth/verify'
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = requests.get(verify_url, headers=headers)
+    character_data = response.json()
+
+    if response.status_code != 200:
+        return "Ошибка при верификации персонажа.", 401
+
+    character_id = character_data['CharacterID']
+    character_name = character_data['CharacterName']
+
+    # Проверяем, существует ли персонаж уже в базе данных
+    user = User.query.filter_by(character_id=character_id).first()
+
+    if user:
+        # Если персонаж уже есть, обновляем его токены
+        user.access_token = access_token
+        user.refresh_token = refresh_token
+        db.session.commit()
+    else:
+        # Если персонажа нет, создаем новую запись
+        new_user = User(
+            character_id=character_id,
+            character_name=character_name,
+            access_token=access_token,
+            refresh_token=refresh_token
+        )
+        db.session.add(new_user)
+        db.session.commit()
+
+    # Перенаправляем пользователя на главную страницу
+    return redirect(f"http://localhost:8080/?token={access_token}")
+
 
 @app.route('/get_jobs')
 def get_jobs():
@@ -79,7 +149,7 @@ def get_jobs():
 
     access_token = auth_header.split(' ')[1]
 
-    # 1. Получаем ID персонажа
+    # Получаем ID персонажа
     verify_url = 'https://login.eveonline.com/oauth/verify'
     headers = {
         'Authorization': f'Bearer {access_token}'
@@ -92,7 +162,7 @@ def get_jobs():
     character_data = response.json()
     character_id = character_data['CharacterID']
 
-    # 2. Получаем список производственных работ
+    # Получаем список производственных работ
     jobs_url = f'https://esi.evetech.net/latest/characters/{character_id}/industry/jobs/'
     headers = {
         'Authorization': f'Bearer {access_token}'
