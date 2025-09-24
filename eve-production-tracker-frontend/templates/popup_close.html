@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Authorization Complete</title>
+  </head>
+  <body>
+    <p>Авторизация прошла успешно. Это окно сейчас закроется.</p>
+    <script>
+      // Отправляем сообщение родительскому окну, что авторизация завершена.
+      window.opener.postMessage("auth-success", "*");
+
+      // Закрываем это всплывающее окно.
+      window.close();
+    </script>
+  </body>
+</html>
