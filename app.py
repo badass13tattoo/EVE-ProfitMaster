@@ -73,7 +73,11 @@ def callback():
 
 @app.route('/get_jobs')
 def get_jobs():
-    access_token = request.headers.get('Authorization').split(' ')[1]
+    authorization_header = request.headers.get('Authorization')
+    if not authorization_header or 'Bearer' not in authorization_header:
+        return jsonify({'error': 'Missing or malformed Authorization header'}), 401
+
+    access_token = authorization_header.split(' ')[1]
 
     # 1. Получаем ID персонажа
     verify_url = 'https://login.eveonline.com/oauth/verify'
