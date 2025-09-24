@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request, redirect, session
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import secrets
+import datetime
 
 # Настройки Flask
 app = Flask(__name__)
@@ -13,7 +14,6 @@ CORS(app)
 # ====================================================================
 # НАСТРОЙКА БЕЗОПАСНОСТИ: SECRET_KEY
 # ====================================================================
-# Этот ключ нужен для шифрования сессий. Он должен быть уникальным и секретным.
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
 
 # Настройки базы данных
@@ -41,6 +41,36 @@ with app.app_context():
 CLIENT_ID = os.environ.get('EVE_CLIENT_ID')
 SECRET_KEY = os.environ.get('EVE_SECRET_KEY')
 CALLBACK_URL = 'https://eve-profitmaster.onrender.com/callback'
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:8080')
+
+# ====================================================================
+# ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ТОКЕНА ДОСТУПА
+# ====================================================================
+def refresh_access_token(user):
+    auth_str = f"{CLIENT_ID}:{SECRET_KEY}"
+    encoded_auth_str = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
+    token_url = 'https://login.eveonline.com/v2/oauth/token'
+    headers = {
+        'Authorization': f'Basic {encoded_auth_str}',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    data = {
+        'grant_type': 'refresh_token',
+        'refresh_token': user.refresh_token
+    }
+    response = requests.post(token_url, headers=headers, data=data)
+    token_data = response.json()
+
+    if 'access_token' in token_data:
+        # Обновляем токены в базе данных
+        user.access_token = token_data['access_token']
+        # Refresh token может тоже обновиться, поэтому сохраняем новый
+        user.refresh_token = token_data.get('refresh_token', user.refresh_token)
+        db.session.commit()
+        return True
+    else:
+        print(f"Ошибка при обновлении токена для {user.character_name}: {token_data.get('error_description')}")
+        return False
 
 # ====================================================================
 # МАРШРУТЫ ПРИЛОЖЕНИЯ
@@ -57,10 +87,8 @@ def login():
         'esi-industry.read_character_jobs.v1'
     ]
     scopes_str = ' '.join(scopes)
-
     state = secrets.token_urlsafe(16)
     session['oauth_state'] = state
-
     params = {
         'response_type': 'code',
         'redirect_uri': CALLBACK_URL,
@@ -80,13 +108,11 @@ def callback():
         return jsonify({'error': 'Неверный параметр state'}), 400
     
     session.pop('oauth_state', None)
-
     if not code:
         return jsonify({'error': 'Код авторизации не получен'}), 400
 
     auth_str = f"{CLIENT_ID}:{SECRET_KEY}"
     encoded_auth_str = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
-
     token_url = 'https://login.eveonline.com/v2/oauth/token'
     headers = {
         'Authorization': f'Basic {encoded_auth_str}',
@@ -110,7 +136,6 @@ def callback():
 def add_character():
     access_token = request.args.get('token')
     refresh_token = request.args.get('refresh')
-
     if not access_token or not refresh_token:
         return "Ошибка: не хватает токенов", 400
 
@@ -126,7 +151,6 @@ def add_character():
 
     character_id = character_data['CharacterID']
     character_name = character_data['CharacterName']
-
     user = User.query.filter_by(character_id=character_id).first()
 
     if user:
@@ -143,40 +167,39 @@ def add_character():
         db.session.add(new_user)
         db.session.commit()
 
-    return redirect(f"http://localhost:8080/?token={access_token}")
+    return redirect(FRONTEND_URL)
 
 @app.route('/get_jobs')
 def get_jobs():
-    # Получаем все токены из базы данных
     users = User.query.all()
-    
     if not users:
         return jsonify({'error': 'Нет сохраненных персонажей. Пожалуйста, авторизуйтесь.'}), 404
 
     all_jobs = []
     
-    # Перебираем каждого персонажа и запрашиваем его работы
     for user in users:
-        access_token = user.access_token
-        character_id = user.character_id
-
-        # Получаем список производственных работ
-        jobs_url = f'https://esi.evetech.net/latest/characters/{character_id}/industry/jobs/'
+        jobs_url = f'https://esi.evetech.net/latest/characters/{user.character_id}/industry/jobs/'
         headers = {
-            'Authorization': f'Bearer {access_token}'
+            'Authorization': f'Bearer {user.access_token}'
         }
         
         response = requests.get(jobs_url, headers=headers)
         
+        # Если токен недействителен, пробуем его обновить
+        if response.status_code == 401:
+            print(f"Токен для {user.character_name} просрочен. Обновляем...")
+            if refresh_access_token(user):
+                # Повторяем запрос с новым токеном
+                headers['Authorization'] = f'Bearer {user.access_token}'
+                response = requests.get(jobs_url, headers=headers)
+                
         if response.status_code == 200:
             jobs_data = response.json()
-            # Добавляем данные о персонаже в каждую работу
             for job in jobs_data:
                 job['character_name'] = user.character_name
             all_jobs.extend(jobs_data)
         else:
-            print(f"Ошибка при получении данных для персонажа {user.character_name}: {response.status_code}")
-            # Пока что не останавливаемся, просто пропускаем этого персонажа
+            print(f"Ошибка при получении данных для персонажа {user.character_name}. Код: {response.status_code}")
 
     return jsonify(all_jobs)
 
