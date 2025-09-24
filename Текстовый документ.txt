@@ -1,0 +1,1 @@
+DATABASE_URL="postgresql://eve_profitmaster_v2_user:dimISkVaaTRhbCYnLbgNNjnCvudXwRaq@dpg-d39v2lp5pdvs73botp5g-a.frankfurt-postgres.render.com/eve_profitmaster_v2"
