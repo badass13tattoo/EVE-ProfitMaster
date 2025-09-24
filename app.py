@@ -17,7 +17,7 @@ CORS(app)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
 
 # Настройки базы данных
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('postgresql://eve_profitmaster_database_user:Zhxf9YC0iyPrYI1NF4eXSFtGIWK0pmwr@dpg-d39tf0bipnbc73b64n7g-a/eve_profitmaster_database')'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
