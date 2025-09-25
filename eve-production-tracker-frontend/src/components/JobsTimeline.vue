@@ -1,12 +1,12 @@
 <template>
-  <div class="timeline-container">
+  <div class="timeline-container" ref="container">
     <div v-if="isLoading" class="loading-indicator">Загрузка данных...</div>
     <div v-else-if="!hasJobs" class="no-jobs-placeholder">
       Нет активных работ для отображения.
     </div>
-    <div v-else class="timeline-wrapper" ref="timelineWrapper">
+    <div v-else class="timeline-wrapper">
       <!-- Заголовки времени -->
-      <div class="time-headers">
+      <div class="time-headers" :style="{ 'padding-left': labelWidth + 'px' }">
         <div
           v-for="hour in timeScale"
           :key="hour.timestamp"
@@ -17,20 +17,32 @@
         </div>
       </div>
       <!-- Группы работ по персонажам -->
-      <div v-for="charId in characterIds" :key="charId" class="character-row">
-        <div class="character-label">{{ getCharacterName(charId) }}</div>
-        <div class="job-bars-container">
+      <div
+        v-for="charId in characterIds"
+        :key="charId"
+        class="character-row-group"
+      >
+        <div class="character-label" :style="{ width: labelWidth + 'px' }">
+          {{ getCharacterName(charId) }}
+        </div>
+        <div class="job-lanes-container">
           <div
-            v-for="job in jobs[charId]"
-            :key="job.job_id"
-            class="job-bar"
-            :class="getJobClass(job.activity_id)"
-            :style="getJobStyle(job)"
-            @mouseover="showTooltip(job, $event)"
-            @mouseleave="hideTooltip"
+            v-for="(lane, index) in processedJobs[charId]"
+            :key="index"
+            class="job-lane"
           >
-            <span class="job-status-icon">{{ getJobStatusIcon(job) }}</span>
-            <span class="job-bar-label">{{ job.product_name }}</span>
+            <div
+              v-for="job in lane"
+              :key="job.job_id"
+              class="job-bar"
+              :class="getJobClass(job.activity_id)"
+              :style="getJobStyle(job)"
+              @mouseover="showTooltip(job, $event)"
+              @mouseleave="hideTooltip"
+            >
+              <span class="job-status-icon">{{ getJobStatusIcon(job) }}</span>
+              <span class="job-bar-label">{{ job.product_name }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -54,17 +66,14 @@
 <script>
 export default {
   name: "JobsTimeline",
-  props: {
-    jobs: Object,
-    characters: Array,
-    isLoading: Boolean,
-  },
+  props: ["jobs", "characters", "isLoading"],
   data() {
     return {
       timelineStart: new Date(),
-      pixelsPerHour: 60,
+      pixelsPerHour: 100,
       timeScale: [],
       tooltip: { visible: false, job: null, x: 0, y: 0 },
+      labelWidth: 150,
     };
   },
   computed: {
@@ -72,7 +81,17 @@ export default {
       return this.characters.map((c) => c.character_id);
     },
     hasJobs() {
-      return Object.values(this.jobs).some((jobList) => jobList.length > 0);
+      return this.characterIds.some(
+        (id) => this.jobs[id] && this.jobs[id].length > 0
+      );
+    },
+    processedJobs() {
+      const result = {};
+      for (const charId of this.characterIds) {
+        const charJobs = this.jobs[charId] || [];
+        result[charId] = this.layoutJobs(charJobs);
+      }
+      return result;
     },
   },
   watch: {
@@ -85,9 +104,31 @@ export default {
     },
   },
   methods: {
+    layoutJobs(jobs) {
+      const lanes = [];
+      const sortedJobs = [...jobs].sort(
+        (a, b) => new Date(a.start_date) - new Date(b.start_date)
+      );
+
+      for (const job of sortedJobs) {
+        let placed = false;
+        for (const lane of lanes) {
+          const lastJobInLane = lane[lane.length - 1];
+          if (new Date(lastJobInLane.end_date) <= new Date(job.start_date)) {
+            lane.push(job);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          lanes.push([job]);
+        }
+      }
+      return lanes;
+    },
     getCharacterName(charId) {
       const char = this.characters.find((c) => c.character_id == charId);
-      return char ? char.character_name : `Персонаж ${charId}`;
+      return char ? char.character_name : `ID: ${charId}`;
     },
     calculateTimeScale() {
       const now = new Date();
@@ -97,9 +138,12 @@ export default {
         now.getDate(),
         now.getHours()
       );
-
       const scale = [];
-      const hoursToShow = 48; // Показываем 48 часов
+      const containerWidth = this.$refs.container
+        ? this.$refs.container.scrollWidth
+        : 2000;
+      const hoursToShow = Math.ceil(containerWidth / this.pixelsPerHour);
+
       for (let i = 0; i < hoursToShow; i++) {
         const date = new Date(this.timelineStart.getTime() + i * 3600 * 1000);
         scale.push({
@@ -113,20 +157,14 @@ export default {
     getJobStyle(job) {
       const startDate = new Date(job.start_date);
       const endDate = new Date(job.end_date);
-
       const startOffsetMs = Math.max(
         0,
         startDate.getTime() - this.timelineStart.getTime()
       );
       const durationMs = endDate.getTime() - startDate.getTime();
-
       const left = (startOffsetMs / (3600 * 1000)) * this.pixelsPerHour;
       const width = (durationMs / (3600 * 1000)) * this.pixelsPerHour;
-
-      return {
-        left: `${left}px`,
-        width: `${width}px`,
-      };
+      return { left: `${left}px`, width: `${width}px` };
     },
     getJobClass(activityId) {
       const classes = {
@@ -141,25 +179,22 @@ export default {
     },
     getJobStatusIcon(job) {
       if (new Date(job.end_date) < new Date()) return "✅";
-      if (job.status === "paused") return "⏸️";
       return "⚙️";
     },
     getJobType(activityId) {
       const jobTypes = {
         1: "Производство",
-        2: "Исследование",
         3: "Копирование",
         4: "Мат. эффективность",
         5: "Врем. эффективность",
         6: "Реакции",
-        7: "Изобретение",
         8: "Изобретение",
       };
       return jobTypes[activityId] || "Неизвестно";
     },
     getJobStatus(job) {
       if (new Date(job.end_date) < new Date()) return "Завершено";
-      return { active: "Идет", paused: "На паузе" }[job.status] || "Неизвестно";
+      return { active: "Идет" }[job.status] || "Неизвестно";
     },
     showTooltip(job, event) {
       this.tooltip = {
@@ -175,6 +210,10 @@ export default {
   },
   mounted() {
     this.calculateTimeScale();
+    window.addEventListener("resize", this.calculateTimeScale);
+  },
+  beforeUnmount() {
+    window.removeEventListener("resize", this.calculateTimeScale);
   },
 };
 </script>
@@ -198,33 +237,32 @@ export default {
   z-index: 2;
   height: 30px;
   border-bottom: 1px solid #444;
-  padding-left: 150px; /* Отступ для имен персонажей */
 }
 .time-header-item {
   position: absolute;
   color: #888;
   font-size: 12px;
 }
-.character-row {
+.character-row-group {
   display: flex;
-  align-items: center;
-  margin-bottom: 5px;
-  min-height: 40px;
+  align-items: flex-start;
+  border-bottom: 1px solid #333;
+  padding: 10px 0;
 }
 .character-label {
-  width: 140px;
-  min-width: 140px;
   padding-right: 10px;
   text-align: right;
   font-weight: bold;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #ddd;
+  padding-top: 5px;
 }
-.job-bars-container {
+.job-lanes-container {
+  flex-grow: 1;
+}
+.job-lane {
   position: relative;
-  width: 100%;
-  height: 40px;
+  height: 32px;
+  margin-bottom: 2px;
 }
 .job-bar {
   position: absolute;
@@ -240,6 +278,7 @@ export default {
   text-overflow: ellipsis;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.3);
 }
 .job-bar-label {
   margin-left: 5px;
@@ -263,14 +302,13 @@ export default {
 .job-default {
   background: #7f8c8d;
 }
-
 .tooltip {
   position: fixed;
-  background-color: #333;
+  background-color: #222;
   border: 1px solid #555;
   padding: 10px;
   border-radius: 5px;
-  z-index: 100;
+  z-index: 1000;
   pointer-events: none;
   font-size: 14px;
   white-space: nowrap;
