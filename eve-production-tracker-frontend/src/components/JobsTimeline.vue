@@ -48,13 +48,27 @@
             v-for="char in characters"
             :key="char.character_id"
             class="character-row-group"
-            :class="{
-              'is-hidden':
-                selectedCharacterId &&
-                selectedCharacterId !== char.character_id,
-            }"
+            :class="getRowClass(char.character_id)"
           >
-            <div class="job-lanes-container">
+            <div
+              v-if="
+                selectedCharacterId &&
+                selectedCharacterId === char.character_id
+              "
+              class="expanded-jobs-view"
+            >
+              <div
+                v-for="job in jobs[char.character_id]"
+                :key="job.job_id"
+                class="expanded-job-item"
+              >
+                <span class="job-name">{{ job.product_name }}</span>
+                <span class="job-time">{{
+                  getTimeRemaining(job.end_date)
+                }}</span>
+              </div>
+            </div>
+            <div v-else class="job-lanes-container">
               <template v-if="processedJobs[char.character_id]">
                 <div
                   v-for="(lane, index) in processedJobs[char.character_id]"
@@ -176,6 +190,13 @@ export default {
     },
   },
   methods: {
+    getRowClass(characterId) {
+      if (!this.selectedCharacterId) return {};
+      return {
+        "is-selected": this.selectedCharacterId === characterId,
+        "is-hidden": this.selectedCharacterId !== characterId,
+      };
+    },
     setScale(mode) {
       this.scaleMode = mode;
     },
@@ -350,13 +371,46 @@ export default {
   padding-top: 10px;
 }
 .character-row-group {
-  min-height: 125px;
+  min-height: 120px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #3c414d;
+  transition: all 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.character-row-group.is-selected {
+  min-height: 250px;
+  background-color: #32363e;
 }
 .character-row-group.is-hidden {
-  display: none;
+  min-height: 50px;
+  overflow: hidden;
 }
 .job-lanes-container {
   padding: 15px 0;
+}
+.expanded-jobs-view {
+  padding: 20px;
+  color: #e0e0e0;
+  height: 100%;
+  overflow-y: auto;
+}
+.expanded-job-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #4a4f58;
+}
+.expanded-job-item:last-child {
+  border-bottom: none;
+}
+.job-name {
+  font-weight: 500;
+}
+.job-time {
+  font-family: monospace;
+  color: #abb2bf;
 }
 .job-lane {
   position: relative;
