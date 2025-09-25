@@ -1,182 +1,107 @@
 <template>
   <div class="app-container">
     <CharacterPanel
+      ref="characterPanel"
+      class="character-panel-column"
       :characters="characters"
       :activities="activities"
-      @add-character="openLoginPopup"
-      @remove-character="removeCharacter"
+      @add-character="addMockCharacter"
+      @remove-character="removeMockCharacter"
       @select-character="handleCharacterSelection"
       :selected-character-id="selectedCharacterId"
+      @scroll="handlePanelScroll"
     />
-
     <JobsTimeline
+      ref="jobsTimeline"
+      class="timeline-column"
       :jobs="filteredJobs"
       :characters="characters"
       :is-loading="loading"
+      :selected-character-id="selectedCharacterId"
+      @scroll="handleTimelineScroll"
     />
-
     <div v-if="!isLoggedIn && !loading" class="login-overlay">
       <div class="login-box">
         <h1>EVE Profit Master</h1>
-        <p>Войдите, чтобы начать отслеживать ваши производственные работы.</p>
-        <a href="#" @click.prevent="openLoginPopup">
-          <img
-            src="/eve-sso-login-white-large.png"
-            alt="Log in with EVE Online"
-          />
-        </a>
+        <p>Для начала работы, нажмите кнопку ниже.</p>
+        <button @click="loadAppData" class="mock-login-button">
+          Начать с тестовыми данными
+        </button>
       </div>
     </div>
   </div>
 </template>
-
 <script>
-import axios from "axios";
 import CharacterPanel from "@/components/CharacterPanel.vue";
 import JobsTimeline from "@/components/JobsTimeline.vue";
-
+import { mockCharacters, mockActivities, mockJobs } from "@/mock/mockData.js";
 export default {
   name: "HomeView",
   components: { CharacterPanel, JobsTimeline },
-  data() {
-    return {
-      jobs: {},
-      characters: [],
-      activities: {},
-      isLoggedIn: false,
-      loading: true,
-      selectedCharacterId: null,
-      loginUrl: "https://eve-profitmaster.onrender.com/login",
-    };
-  },
+  data: () => ({
+    jobs: {},
+    characters: [],
+    activities: {},
+    isLoggedIn: false,
+    loading: false,
+    selectedCharacterId: null,
+    isPanelScrolling: false,
+    isTimelineScrolling: false,
+  }),
   computed: {
     filteredJobs() {
-      if (!this.selectedCharacterId) {
-        return this.jobs;
-      }
+      if (!this.selectedCharacterId) return this.jobs;
       return {
         [this.selectedCharacterId]: this.jobs[this.selectedCharacterId] || [],
       };
     },
   },
-  mounted() {
-    window.addEventListener("message", this.handleAuthMessage);
-  },
-  beforeUnmount() {
-    window.removeEventListener("message", this.handleAuthMessage);
-  },
-  async created() {
-    this.loadAppData();
-  },
   methods: {
+    handlePanelScroll(event) {
+      if (this.selectedCharacterId || this.isTimelineScrolling) return;
+      this.isPanelScrolling = true;
+      this.$refs.jobsTimeline.setScrollTop(event.target.scrollTop);
+      requestAnimationFrame(() => {
+        this.isPanelScrolling = false;
+      });
+    },
+    handleTimelineScroll(event) {
+      if (this.selectedCharacterId || this.isPanelScrolling) return;
+      this.isTimelineScrolling = true;
+      this.$refs.characterPanel.setScrollTop(event.target.scrollTop);
+      requestAnimationFrame(() => {
+        this.isTimelineScrolling = false;
+      });
+    },
     handleCharacterSelection(charId) {
       this.selectedCharacterId =
         this.selectedCharacterId === charId ? null : charId;
     },
-    openLoginPopup() {
-      const width = 600,
-        height = 700;
-      const left = window.top.outerWidth / 2 + window.top.screenX - width / 2;
-      const top = window.top.outerHeight / 2 + window.top.screenY - height / 2;
-      window.open(
-        this.loginUrl,
-        "eveLogin",
-        `width=${width},height=${height},top=${top},left=${left}`
-      );
-    },
-    handleAuthMessage(event) {
-      if (event.data === "auth-success") this.loadAppData();
-    },
-    async loadAppData() {
+    _getMockData() {},
+    loadAppData() {
       this.loading = true;
-      const backendUrl = "https://eve-profitmaster.onrender.com";
-      try {
-        const charsResponse = await axios.get(`${backendUrl}/get_characters`);
-        this.characters = charsResponse.data;
-        if (this.characters && this.characters.length > 0) {
-          this.isLoggedIn = true;
-          await this.fetchJobs();
-          this.fetchAllCharacterDetails();
-        } else {
-          this.isLoggedIn = false;
-        }
-      } catch (error) {
-        console.error("Ошибка при начальной загрузке данных:", error);
-        this.isLoggedIn = false;
-      } finally {
-        this.loading = false;
-      }
+      const mockData = this._getMockData();
+      this.characters = mockCharacters;
+      this.activities = mockActivities;
+      this.jobs = mockJobs;
+      this.isLoggedIn = true;
+      this.loading = false;
     },
-    async fetchAllCharacterDetails() {
-      const backendUrl = "https://eve-profitmaster.onrender.com";
-      const promises = this.characters.map((char) =>
-        axios
-          .get(`${backendUrl}/get_character_details/${char.character_id}`)
-          .then((response) => {
-            this.activities = {
-              ...this.activities,
-              [char.character_id]: response.data,
-            };
-          })
-          .catch((error) =>
-            console.error(`Ошибка деталей для ${char.character_name}:`, error)
-          )
+    addMockCharacter() {
+      alert("Добавление 'болванки' в разработке.");
+    },
+    removeMockCharacter(characterId) {
+      if (!confirm("Уверены?")) return;
+      this.characters = this.characters.filter(
+        (c) => c.character_id !== characterId
       );
-      await Promise.all(promises);
-    },
-    async removeCharacter(characterId) {
-      if (!confirm("Вы уверены, что хотите удалить этого персонажа?")) return;
-      const backendUrl = "https://eve-profitmaster.onrender.com";
-      try {
-        await axios.post(`${backendUrl}/remove_character`, {
-          character_id: characterId,
-        });
-        this.loadAppData();
-      } catch (error) {
-        alert("Не удалось удалить персонажа.");
-      }
-    },
-    async fetchJobs() {
-      const backendUrl = "https://eve-profitmaster.onrender.com";
-      try {
-        const response = await axios.get(`${backendUrl}/get_jobs`);
-        const jobsByChar = response.data;
-        const allProductIds = Object.values(jobsByChar)
-          .flat()
-          .map((job) => job.product_type_id);
-        const uniqueProductIds = [...new Set(allProductIds)];
-        const itemNames = await this.fetchTypeNames(uniqueProductIds);
-        for (const charId in jobsByChar) {
-          jobsByChar[charId].forEach((job) => {
-            job.product_name = itemNames[job.product_type_id] || "Unknown Item";
-          });
-        }
-        this.jobs = jobsByChar;
-      } catch (error) {
-        console.error("Ошибка при получении данных о работах:", error);
-        this.jobs = {};
-      }
-    },
-    async fetchTypeNames(ids) {
-      if (!ids || ids.length === 0) return {};
-      try {
-        const response = await axios.post(
-          "https://esi.evetech.net/latest/universe/names/",
-          ids
-        );
-        const itemNames = {};
-        response.data.forEach((item) => {
-          itemNames[item.id] = item.name;
-        });
-        return itemNames;
-      } catch (error) {
-        return {};
-      }
+      delete this.jobs[characterId];
+      delete this.activities[characterId];
+      if (this.characters.length === 0) this.isLoggedIn = false;
     },
   },
 };
 </script>
-
 <style>
 body,
 html {
@@ -184,14 +109,19 @@ html {
   padding: 0;
   background-color: #1a1a1a;
   color: #f0f0f0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Segoe UI", sans-serif;
 }
 </style>
-
 <style scoped>
 .app-container {
   display: flex;
   height: 100vh;
+}
+.character-panel-column {
+  flex-shrink: 0;
+}
+.timeline-column {
+  flex-grow: 1;
 }
 .login-overlay {
   position: fixed;
@@ -210,5 +140,15 @@ html {
   padding: 40px;
   background-color: #2c2c2c;
   border-radius: 10px;
+}
+.mock-login-button {
+  background-color: #4e9aef;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 18px;
+  margin-top: 20px;
 }
 </style>
