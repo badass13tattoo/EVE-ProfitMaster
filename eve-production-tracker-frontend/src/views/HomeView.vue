@@ -5,7 +5,6 @@
     <!-- Экран входа -->
     <div v-if="!isLoggedIn && !loading">
       <p>Войдите, чтобы начать отслеживать ваши производственные работы.</p>
-      <!-- ИЗМЕНЕНИЕ: Кнопка теперь вызывает метод, а не является ссылкой -->
       <a href="#" @click.prevent="openLoginPopup">
         <img
           src="/eve-sso-login-white-large.png"
@@ -16,7 +15,6 @@
 
     <!-- Основной контент -->
     <div v-if="isLoggedIn && !loading">
-      <!-- Список персонажей -->
       <div class="characters-container">
         <h2>Авторизованные персонажи:</h2>
         <div class="characters-list">
@@ -25,14 +23,36 @@
             :key="char.character_id"
             class="character-item"
           >
+            <!-- КНОПКА УДАЛЕНИЯ -->
+            <button
+              @click="removeCharacter(char.character_id)"
+              class="remove-char-btn"
+              title="Удалить персонажа"
+            >
+              ×
+            </button>
             <img
               :src="getCharacterPortrait(char.character_id)"
               :alt="char.character_name"
               class="character-portrait"
             />
             <span class="character-name">{{ char.character_name }}</span>
+            <!-- ИНФОРМАЦИЯ О ЛИНИЯХ -->
+            <div v-if="activities[char.character_id]" class="activity-info">
+              <div>
+                П: {{ activities[char.character_id].manufacturing.used }} /
+                {{ activities[char.character_id].manufacturing.total }}
+              </div>
+              <div>
+                И: {{ activities[char.character_id].research.used }} /
+                {{ activities[char.character_id].research.total }}
+              </div>
+            </div>
+            <div v-else class="activity-info">
+              <small>Загрузка...</small>
+            </div>
           </div>
-          <!-- ИЗМЕНЕНИЕ: Кнопка добавления также вызывает метод -->
+          <!-- Кнопка добавления -->
           <a href="#" @click.prevent="openLoginPopup" class="add-char-item">
             <div class="add-char-icon">+</div>
             <span class="character-name">Добавить</span>
@@ -77,12 +97,12 @@ export default {
     return {
       jobs: [],
       characters: [],
+      activities: {}, // Для хранения данных о линиях
       isLoggedIn: false,
       loading: true,
       loginUrl: "https://eve-profitmaster.onrender.com/login",
     };
   },
-  // ИЗМЕНЕНИЕ: Добавлены mounted и beforeUnmount для слушателя событий
   mounted() {
     window.addEventListener("message", this.handleAuthMessage);
   },
@@ -93,10 +113,9 @@ export default {
     this.loadAppData();
   },
   methods: {
-    // НОВЫЙ МЕТОД: Открывает всплывающее окно для логина
     openLoginPopup() {
-      const width = 600;
-      const height = 700;
+      const width = 600,
+        height = 700;
       const left = window.screen.width / 2 - width / 2;
       const top = window.screen.height / 2 - height / 2;
       window.open(
@@ -105,15 +124,12 @@ export default {
         `width=${width},height=${height},top=${top},left=${left}`
       );
     },
-    // НОВЫЙ МЕТОД: Обрабатывает сообщение от всплывающего окна
     handleAuthMessage(event) {
-      // Для безопасности можно добавить проверку event.origin
       if (event.data === "auth-success") {
         console.log("Авторизация прошла успешно, обновляем данные...");
-        this.loadAppData(); // Перезагружаем все данные
+        this.loadAppData();
       }
     },
-
     async loadAppData() {
       this.loading = true;
       const backendUrl = "https://eve-profitmaster.onrender.com";
@@ -123,6 +139,8 @@ export default {
         if (this.characters && this.characters.length > 0) {
           this.isLoggedIn = true;
           await this.fetchJobs();
+          // После загрузки персонажей, получаем данные об их активностях
+          this.fetchAllCharacterActivities();
         } else {
           this.isLoggedIn = false;
         }
@@ -133,7 +151,46 @@ export default {
         this.loading = false;
       }
     },
-
+    async fetchAllCharacterActivities() {
+      const backendUrl = "https://eve-profitmaster.onrender.com";
+      for (const char of this.characters) {
+        try {
+          const response = await axios.get(
+            `${backendUrl}/get_character_activity/${char.character_id}`
+          );
+          // Используем Vue.set или прямое присваивание для реактивности
+          this.activities = {
+            ...this.activities,
+            [char.character_id]: response.data,
+          };
+        } catch (error) {
+          console.error(
+            `Ошибка при получении активности для ${char.character_name}:`,
+            error
+          );
+        }
+      }
+    },
+    async removeCharacter(characterId) {
+      if (
+        !confirm(
+          "Вы уверены, что хотите удалить этого персонажа? Вам придется заново авторизовать его."
+        )
+      ) {
+        return;
+      }
+      const backendUrl = "https://eve-profitmaster.onrender.com";
+      try {
+        await axios.post(`${backendUrl}/remove_character`, {
+          character_id: characterId,
+        });
+        // Обновляем данные после удаления
+        this.loadAppData();
+      } catch (error) {
+        console.error("Ошибка при удалении персонажа:", error);
+        alert("Не удалось удалить персонажа. Пожалуйста, попробуйте снова.");
+      }
+    },
     async fetchJobs() {
       const backendUrl = "https://eve-profitmaster.onrender.com";
       try {
@@ -156,11 +213,8 @@ export default {
         this.jobs = [];
       }
     },
-
     async fetchTypeNames(ids) {
-      if (!ids || ids.length === 0) {
-        return {};
-      }
+      if (!ids || ids.length === 0) return {};
       try {
         const response = await axios.post(
           "https://esi.evetech.net/latest/universe/names/",
@@ -176,28 +230,23 @@ export default {
         return {};
       }
     },
-
     getCharacterPortrait(characterId) {
       return `https://images.evetech.net/characters/${characterId}/portrait?size=64`;
     },
-
     getJobType(activityId) {
       const jobTypes = {
         1: "Производство",
         2: "Научные исследования",
         3: "Копирование",
-        4: "Материальная эффективность",
-        5: "Временная эффективность",
+        4: "Мат. эффективность",
+        5: "Врем. эффективность",
         6: "Реакции",
         7: "Изобретение",
       };
       return jobTypes[activityId] || "Неизвестно";
     },
-
     getJobStatus(job) {
-      const currentTime = new Date();
-      const endTime = new Date(job.end_date);
-      if (job.status === "active" && endTime < currentTime) {
+      if (job.status === "active" && new Date(job.end_date) < new Date()) {
         return "Готово к доставке";
       }
       const jobStatuses = {
@@ -214,6 +263,7 @@ export default {
 </script>
 
 <style scoped>
+/* ... (все ваши старые стили остаются здесь) ... */
 .home {
   text-align: center;
   margin-top: 50px;
@@ -249,17 +299,20 @@ li {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100px;
+  width: 120px;
   text-decoration: none;
   color: inherit;
+  position: relative;
+  background-color: #2c2c2c;
+  padding: 10px;
+  border-radius: 8px;
 }
 .add-char-item {
   cursor: pointer;
   border: 2px dashed #555;
-  border-radius: 8px;
   justify-content: center;
   transition: background-color 0.2s, border-color 0.2s;
-  height: 100px;
+  height: 120px;
 }
 .add-char-item:hover {
   background-color: #333;
@@ -283,5 +336,30 @@ li {
   font-size: 14px;
   text-align: center;
   word-break: break-word;
+}
+/* НОВЫЕ СТИЛИ */
+.remove-char-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #555;
+  color: white;
+  border: none;
+  border-radius: 0 8px 0 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  line-height: 24px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+.character-item:hover .remove-char-btn {
+  opacity: 1;
+}
+.activity-info {
+  font-size: 12px;
+  margin-top: 5px;
+  color: #aaa;
 }
 </style>
