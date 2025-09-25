@@ -112,6 +112,9 @@ export default {
   border: 2px solid #3c414d;
   cursor: pointer;
   transition: all 0.2s;
+  min-height: 120px;
+  max-height: 120px;
+  box-sizing: border-box;
 }
 .character-card:hover {
   border-color: #61afef;
