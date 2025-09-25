@@ -114,10 +114,13 @@ export default {
   },
   methods: {
     openLoginPopup() {
-      const width = 600,
-        height = 700;
-      const left = window.screen.width / 2 - width / 2;
-      const top = window.screen.height / 2 - height / 2;
+      const width = 600;
+      const height = 700;
+
+      // Рассчитываем позицию относительно текущего окна браузера, а не всего экрана
+      const left = window.top.outerWidth / 2 + window.top.screenX - width / 2;
+      const top = window.top.outerHeight / 2 + window.top.screenY - height / 2;
+
       window.open(
         this.loginUrl,
         "eveLogin",
