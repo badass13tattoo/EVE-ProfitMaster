@@ -27,7 +27,7 @@ class User(db.Model):
 def create_app():
     """Создает и конфигурирует экземпляр приложения Flask."""
     
-    app = Flask(__name__, template_folder='templates') # Указываем папку для шаблонов
+    app = Flask(__name__) # Указываем папку для шаблонов
     load_dotenv()
 
     # --- Конфигурация ---
