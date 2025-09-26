@@ -1009,6 +1009,7 @@ html {
   flex-direction: column;
   flex-grow: 1;
   padding-top: 20px;
+  padding-bottom: 20px; /* Обеспечит отступ снизу для синхронизации */
   overflow: hidden;
   background-color: #282c34;
 }
