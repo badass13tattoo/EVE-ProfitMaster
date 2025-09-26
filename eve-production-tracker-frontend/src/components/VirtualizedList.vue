@@ -109,19 +109,13 @@ export default {
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
+  /* Скрываем скроллбар для всех браузеров */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
 }
 
 .virtualized-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.virtualized-list::-webkit-scrollbar-track {
-  background: #20232a;
-}
-
-.virtualized-list::-webkit-scrollbar-thumb {
-  background-color: #4f5b6b;
-  border-radius: 4px;
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .virtualized-content {

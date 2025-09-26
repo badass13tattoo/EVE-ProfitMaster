@@ -126,7 +126,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 15px 15px;
+  padding: 12px 15px 8px; /* Уменьшаем padding на 15px (20->12, 15->8) */
   background-color: #20232a;
   position: sticky;
   top: 0;
@@ -143,7 +143,9 @@ export default {
   font-size: 18px;
 }
 .characters-list {
-  height: calc(100% - 105px); /* Увеличиваем высоту с учетом отступов */
+  height: calc(
+    100% - 90px
+  ); /* Уменьшаем на 15px (105->90) с учетом уменьшения заголовка */
   padding: 10px 0 40px 0; /* Добавляем отступы сверху и снизу */
 }
 .character-card {
@@ -288,7 +290,7 @@ export default {
 /* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
   .panel-header-controls {
-    padding: 15px 10px 10px;
+    padding: 7px 10px 5px; /* Уменьшаем на 15px (15->7, 10->5) */
     margin: -20px -15px 15px;
   }
 
@@ -308,7 +310,7 @@ export default {
 
 @media (max-width: 480px) {
   .panel-header-controls {
-    padding: 12px 8px 8px;
+    padding: 4px 8px 3px; /* Уменьшаем на 15px (12->4, 8->3) */
     margin: -20px -15px 12px;
   }
 
