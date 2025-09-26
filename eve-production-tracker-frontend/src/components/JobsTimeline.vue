@@ -1415,7 +1415,7 @@ export default {
   top: 0;
   background-color: #282c34;
   z-index: 2;
-  height: 15px;
+  height: 10px;
   width: 100%;
   /* Убедитесь, что контейнер заголовков занимает всю ширину и является контекстом для своих элементов */
   box-sizing: border-box;
