@@ -1406,10 +1406,10 @@ export default {
 }
 .timeline-wrapper {
   position: relative;
+  /* Ширина задается через :style="{ width: timelineWidth + 'px' }" */
   min-height: 100%;
-  gap: 15px;
-  max-width: 100%;
   box-sizing: border-box;
+  /* Убираем gap, так как он управляется через JavaScript */
 }
 .time-headers {
   position: sticky;
@@ -1417,9 +1417,9 @@ export default {
   background-color: #282c34;
   z-index: 2;
   height: 20px;
-  /* border-bottom: 1px solid #444; */ /* Убираем горизонтальную линию */
-  top: 0px;
   width: 100%;
+  /* Убедитесь, что контейнер заголовков занимает всю ширину и является контекстом для своих элементов */
+  box-sizing: border-box;
 }
 .time-header-item {
   position: absolute;
