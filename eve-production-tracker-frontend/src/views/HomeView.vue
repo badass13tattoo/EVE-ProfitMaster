@@ -306,41 +306,6 @@ export default {
     }
   },
 
-  // Очистка базы данных
-  async resetDatabase() {
-    if (
-      confirm(
-        "Вы уверены, что хотите очистить базу данных? Все персонажи будут удалены."
-      )
-    ) {
-      try {
-        const response = await fetch(`${this.apiBaseUrl}/reset_database`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          alert(result.message);
-          // Очищаем локальные данные
-          this.characters = [];
-          this.activities = {};
-          this.jobs = {};
-          this.isLoggedIn = false;
-          this.selectedCharacterId = null;
-        } else {
-          const error = await response.json();
-          alert(`Ошибка: ${error.error}`);
-        }
-      } catch (error) {
-        console.error("Ошибка очистки базы данных:", error);
-        alert("Ошибка подключения к серверу.");
-      }
-    }
-  },
-
   // Загрузка дополнительных данных для персонажа
   async loadCharacterDetails(characterId) {
     try {
@@ -410,6 +375,41 @@ export default {
       console.error(`Error loading location info for ${locationId}:`, error);
     }
     return null;
+  },
+
+  // Очистка базы данных
+  async resetDatabase() {
+    if (
+      confirm(
+        "Вы уверены, что хотите очистить базу данных? Все персонажи будут удалены."
+      )
+    ) {
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/reset_database`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          alert(result.message);
+          // Очищаем локальные данные
+          this.characters = [];
+          this.activities = {};
+          this.jobs = {};
+          this.isLoggedIn = false;
+          this.selectedCharacterId = null;
+        } else {
+          const error = await response.json();
+          alert(`Ошибка: ${error.error}`);
+        }
+      } catch (error) {
+        console.error("Ошибка очистки базы данных:", error);
+        alert("Ошибка подключения к серверу.");
+      }
+    }
   },
 };
 </script>
