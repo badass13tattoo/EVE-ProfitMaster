@@ -999,7 +999,7 @@ html {
 .app-container {
   display: flex;
   height: 100vh;
-  max-height: 100vh;
+  min-height: 100vh;
   overflow: hidden;
   padding-bottom: 20px; /* Добавляем отступ снизу для всего приложения */
   box-sizing: border-box;
@@ -1078,7 +1078,10 @@ html {
 }
 
 .timeline-column {
-  flex-grow: 1;
+  flex-grow: 1; /* ГАРАНТИРУЕТ, что колонка займет всю ширину */
+  display: flex; /* НОВОЕ: Сделайте колонку Flex-контейнером */
+  flex-direction: column; /* НОВОЕ: Для правильного распределения высоты */
+  height: 100%;
 }
 
 .project-view-container {

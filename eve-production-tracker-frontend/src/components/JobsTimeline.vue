@@ -28,15 +28,14 @@
         class="timeline-wrapper"
         :style="{ width: timelineWidth + 'px' }"
       >
-        <div class="time-headers">
-          <div
-            v-for="marker in timeScale"
-            :key="marker.timestamp"
-            class="time-header-item"
-            :style="{ left: marker.left + 'px' }"
-          >
-            <span>{{ marker.label }}</span>
-          </div>
+        <div class="timeline-wrapper" :style="{ width: timelineWidth + 'px' }">
+          <div class="time-headers">...</div>
+          <div class="current-time-line"></div>
+
+          <div v-if="isLoading" class="loading-indicator">Data loading...</div>
+          <div v-else-if="!hasJobs" class="no-jobs-placeholder">No jobs.</div>
+
+          <div v-else class="character-rows-container"></div>
         </div>
         <div class="current-time-line"></div>
         <div class="character-rows-container">
@@ -1356,6 +1355,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
   max-width: 100%;
   width: 100%;
 }
@@ -1389,10 +1389,9 @@ export default {
   border-color: #61afef;
 }
 .timeline-scroll-wrapper {
-  flex-grow: 1;
-  box-sizing: border-box;
-  overflow: auto;
-  width: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .timeline-scroll-wrapper::-webkit-scrollbar {
@@ -1407,7 +1406,7 @@ export default {
 }
 
 .timeline-scroll-wrapper.is-locked {
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 .timeline-wrapper {
   position: relative;
@@ -1420,8 +1419,8 @@ export default {
   position: sticky;
   top: 0;
   background-color: #282c34;
-  z-index: 2;
-  height: 10px;
+  z-index: 0;
+  height: 40px;
   width: 100%;
   /* Убедитесь, что контейнер заголовков занимает всю ширину и является контекстом для своих элементов */
   box-sizing: border-box;
