@@ -173,6 +173,7 @@ export default {
     // Загрузка реальных данных из API
     async loadRealData() {
       this.loading = true;
+      console.log("Starting loadRealData...");
       try {
         // Загружаем персонажей
         const charactersResponse = await fetch(
@@ -230,6 +231,56 @@ export default {
           }
         }
 
+        // Загружаем планеты и добавляем их работы к обычным работам
+        for (const character of this.characters) {
+          try {
+            const planetsResponse = await fetch(
+              `${this.apiBaseUrl}/get_character_planets/${character.character_id}`
+            );
+            if (planetsResponse.ok) {
+              const planets = await planetsResponse.json();
+              console.log(
+                `Planets for character ${character.character_id}:`,
+                planets
+              );
+
+              // Сохраняем данные о планетах
+              this.planets[character.character_id] = planets;
+
+              // Добавляем работы планет к обычным работам
+              if (this.jobs[character.character_id]) {
+                for (const planet of planets) {
+                  if (planet.jobs && planet.jobs.length > 0) {
+                    this.jobs[character.character_id] = this.jobs[
+                      character.character_id
+                    ].concat(planet.jobs);
+                    console.log(
+                      `Added ${planet.jobs.length} planet jobs for character ${character.character_id}`
+                    );
+                  }
+                }
+              }
+
+              // Анализируем планеты, требующие внимания
+              const planetsNeedingAttention = planets.filter(
+                (planet) => planet.needs_attention
+              );
+              if (planetsNeedingAttention.length > 0) {
+                console.log(
+                  `Planets needing attention for character ${character.character_id}:`,
+                  planetsNeedingAttention
+                );
+              }
+            }
+          } catch (error) {
+            console.error(
+              `Error loading planets for character ${character.character_id}:`,
+              error
+            );
+          }
+        }
+
+        console.log("Final jobs data after adding planets:", this.jobs);
         this.isLoggedIn = true;
       } catch (error) {
         console.error("Ошибка загрузки данных:", error);
@@ -296,40 +347,7 @@ export default {
           console.log(`Blueprints for character ${characterId}:`, blueprints);
         }
 
-        // Загружаем планеты
-        const planetsResponse = await fetch(
-          `${this.apiBaseUrl}/get_character_planets/${characterId}`
-        );
-        if (planetsResponse.ok) {
-          const planets = await planetsResponse.json();
-          console.log(`Planets for character ${characterId}:`, planets);
-
-          // Сохраняем данные о планетах
-          this.planets[characterId] = planets;
-
-          // Добавляем работы планет к обычным работам
-          if (this.jobs[characterId]) {
-            for (const planet of planets) {
-              if (planet.jobs && planet.jobs.length > 0) {
-                this.jobs[characterId] = this.jobs[characterId].concat(
-                  planet.jobs
-                );
-              }
-            }
-          }
-
-          // Анализируем планеты, требующие внимания
-          const planetsNeedingAttention = planets.filter(
-            (planet) => planet.needs_attention
-          );
-          if (planetsNeedingAttention.length > 0) {
-            console.log(
-              `Planets needing attention for character ${characterId}:`,
-              planetsNeedingAttention
-            );
-            // Здесь можно добавить уведомления или другие действия
-          }
-        }
+        // Планеты уже загружены в loadRealData
 
         // Загружаем портрет
         const portraitResponse = await fetch(
