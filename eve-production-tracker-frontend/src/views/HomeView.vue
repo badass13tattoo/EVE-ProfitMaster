@@ -17,18 +17,6 @@
             <i :class="navItem.icon"></i>
             <span class="nav-label">{{ navItem.label }}</span>
           </button>
-          <div class="nav-actions">
-            <button
-              @click="forceRefresh"
-              class="refresh-button"
-              :disabled="loading"
-              title="Принудительно обновить данные"
-            >
-              <i class="refresh-icon">🔄</i>
-              <span v-if="loading">Обновление...</span>
-              <span v-else>Обновить</span>
-            </button>
-          </div>
         </nav>
       </div>
 
@@ -114,6 +102,11 @@ export default {
     loading: false,
     selectedCharacterId: null,
     currentSection: "characters", // Текущий активный раздел
+    // Автоматическое обновление
+    autoUpdateInterval: null,
+    lastActivityTime: Date.now(),
+    isWindowActive: true,
+    updateTimeout: null,
     apiBaseUrl:
       process.env.NODE_ENV === "development"
         ? "http://localhost:5000"
@@ -598,20 +591,6 @@ export default {
       return null;
     },
 
-    // Принудительное обновление данных
-    async forceRefresh() {
-      this.loading = true;
-      try {
-        await this.loadRealData(false); // Принудительно загружаем без кэша
-        alert("Данные успешно обновлены");
-      } catch (error) {
-        console.error("Ошибка принудительного обновления:", error);
-        alert("Ошибка обновления данных");
-      } finally {
-        this.loading = false;
-      }
-    },
-
     // Очистка кэша
     clearCache() {
       if (
@@ -621,6 +600,67 @@ export default {
       ) {
         dataCache.clearCache();
         alert("Кэш очищен");
+      }
+    },
+
+    // Автоматическое обновление данных
+    startAutoUpdate() {
+      // Обновляем каждые 2-3 минуты (120-180 секунд)
+      const updateInterval = () => {
+        if (this.isWindowActive && this.isLoggedIn) {
+          console.log("Автоматическое обновление данных...");
+          this.updateDataInBackground();
+        }
+
+        // Планируем следующее обновление через 2-3 минуты
+        const nextUpdateDelay = Math.random() * 60000 + 120000; // 2-3 минуты
+        this.updateTimeout = setTimeout(updateInterval, nextUpdateDelay);
+      };
+
+      // Запускаем первое обновление через 2-3 минуты
+      const initialDelay = Math.random() * 60000 + 120000;
+      this.updateTimeout = setTimeout(updateInterval, initialDelay);
+
+      // Запускаем проверку активности окна каждую минуту
+      this.autoUpdateInterval = setInterval(() => {
+        this.checkWindowActivity();
+      }, 60000); // Каждую минуту
+    },
+
+    // Остановка автоматического обновления
+    stopAutoUpdate() {
+      if (this.updateTimeout) {
+        clearTimeout(this.updateTimeout);
+        this.updateTimeout = null;
+      }
+      if (this.autoUpdateInterval) {
+        clearInterval(this.autoUpdateInterval);
+        this.autoUpdateInterval = null;
+      }
+    },
+
+    // Обработка активности окна
+    handleWindowFocus() {
+      this.isWindowActive = true;
+      this.lastActivityTime = Date.now();
+      console.log("Окно активно, возобновляем обновления");
+    },
+
+    handleWindowBlur() {
+      this.isWindowActive = false;
+      this.lastActivityTime = Date.now();
+      console.log("Окно неактивно, приостанавливаем обновления");
+    },
+
+    // Проверка активности окна
+    checkWindowActivity() {
+      const now = Date.now();
+      const timeSinceLastActivity = now - this.lastActivityTime;
+
+      // Если окно неактивно более 15 минут, останавливаем обновления
+      if (!this.isWindowActive && timeSinceLastActivity > 15 * 60 * 1000) {
+        this.stopAutoUpdate();
+        console.log("Окно неактивно более 15 минут, остановка обновлений");
       }
     },
 
@@ -664,6 +704,17 @@ export default {
 
   // Проверяем авторизацию при загрузке компонента
   async mounted() {
+    // Добавляем обработчики активности окна
+    window.addEventListener("focus", this.handleWindowFocus);
+    window.addEventListener("blur", this.handleWindowBlur);
+    window.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        this.handleWindowBlur();
+      } else {
+        this.handleWindowFocus();
+      }
+    });
+
     // Проверяем URL параметры на успешную авторизацию
     const urlParams = new URLSearchParams(window.location.search);
     const authSuccess = urlParams.get("auth");
@@ -673,14 +724,18 @@ export default {
       window.history.replaceState({}, document.title, window.location.pathname);
       // Принудительно загружаем данные после авторизации (без кэша)
       await this.loadRealData(false);
+      // Запускаем автоматическое обновление
+      this.startAutoUpdate();
       return;
     }
 
     // Сначала пытаемся загрузить из кэша
     if (this.loadCachedData()) {
-      console.log("Данные загружены из кэша, запускаем фоновое обновление");
-      // Запускаем фоновое обновление
-      this.updateDataInBackground();
+      console.log(
+        "Данные загружены из кэша, запускаем автоматическое обновление"
+      );
+      // Запускаем автоматическое обновление
+      this.startAutoUpdate();
       return;
     }
 
@@ -694,12 +749,31 @@ export default {
         if (characters.length > 0) {
           // Пользователь авторизован, загружаем реальные данные
           await this.loadRealData();
+          // Запускаем автоматическое обновление
+          this.startAutoUpdate();
         }
       }
     } catch (error) {
       // Игнорируем ошибки при первом запуске - пользователь не авторизован
       console.log("Пользователь не авторизован или сервер недоступен");
     }
+  },
+
+  // Очистка при размонтировании компонента
+  beforeUnmount() {
+    // Останавливаем автоматическое обновление
+    this.stopAutoUpdate();
+
+    // Удаляем обработчики активности окна
+    window.removeEventListener("focus", this.handleWindowFocus);
+    window.removeEventListener("blur", this.handleWindowBlur);
+    window.removeEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        this.handleWindowBlur();
+      } else {
+        this.handleWindowFocus();
+      }
+    });
   },
 };
 </script>
@@ -744,14 +818,6 @@ html {
   min-height: 60px;
   align-items: center;
   padding-left: 20px;
-  justify-content: space-between;
-}
-
-.nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-right: 20px;
 }
 
 .nav-button {
@@ -952,47 +1018,6 @@ html {
   background-color: #c82333;
   transform: translateY(-1px);
   box-shadow: 0 3px 6px rgba(220, 53, 69, 0.3);
-}
-
-.refresh-button {
-  background-color: #28a745;
-  color: white;
-  border: 2px solid transparent;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.refresh-button:hover:not(:disabled) {
-  background-color: #218838;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(40, 167, 69, 0.3);
-}
-
-.refresh-button:disabled {
-  background-color: #6c757d;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.refresh-icon {
-  font-size: 16px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .clear-cache-button {
