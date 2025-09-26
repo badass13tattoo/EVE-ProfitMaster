@@ -7,10 +7,16 @@ from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 import secrets
 import datetime
+import time
 
 load_dotenv()
 db = SQLAlchemy()
 cors = CORS()
+
+# Простой кэш для типов и локаций
+type_cache = {}
+location_cache = {}
+cache_duration = 3600  # 1 час
 
 # Проверяем загрузку переменных окружения
 print("DATABASE_URL:", os.environ.get('DATABASE_URL', 'NOT SET'))
@@ -36,6 +42,70 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)
     cors.init_app(app)
+
+    def get_cached_type_info(type_id):
+        """Получает информацию о типе с кэшированием"""
+        current_time = time.time()
+        if type_id in type_cache:
+            cached_data, timestamp = type_cache[type_id]
+            if current_time - timestamp < cache_duration:
+                return cached_data
+        
+        try:
+            resp = requests.get(f'https://esi.evetech.net/latest/universe/types/{type_id}/')
+            if resp.status_code == 200:
+                type_data = resp.json()
+                cached_data = {
+                    'type_id': type_id,
+                    'name': type_data.get('name', f'Type {type_id}'),
+                    'description': type_data.get('description', ''),
+                    'group_id': type_data.get('group_id'),
+                    'market_group_id': type_data.get('market_group_id')
+                }
+                type_cache[type_id] = (cached_data, current_time)
+                return cached_data
+        except:
+            pass
+        
+        return {'type_id': type_id, 'name': f'Type {type_id}'}
+
+    def get_cached_location_info(location_id):
+        """Получает информацию о локации с кэшированием"""
+        current_time = time.time()
+        if location_id in location_cache:
+            cached_data, timestamp = location_cache[location_id]
+            if current_time - timestamp < cache_duration:
+                return cached_data
+        
+        try:
+            if location_id > 1000000000000:  # Structure
+                resp = requests.get(f'https://esi.evetech.net/latest/universe/structures/{location_id}/')
+                if resp.status_code == 200:
+                    location_data = resp.json()
+                    cached_data = {
+                        'location_id': location_id,
+                        'name': location_data.get('name', f'Structure {location_id}'),
+                        'type': 'structure',
+                        'solar_system_id': location_data.get('solar_system_id')
+                    }
+                    location_cache[location_id] = (cached_data, current_time)
+                    return cached_data
+            else:  # Station
+                resp = requests.get(f'https://esi.evetech.net/latest/universe/stations/{location_id}/')
+                if resp.status_code == 200:
+                    location_data = resp.json()
+                    cached_data = {
+                        'location_id': location_id,
+                        'name': location_data.get('name', f'Station {location_id}'),
+                        'type': 'station',
+                        'solar_system_id': location_data.get('system_id')
+                    }
+                    location_cache[location_id] = (cached_data, current_time)
+                    return cached_data
+        except:
+            pass
+        
+        return {'location_id': location_id, 'name': f'Location {location_id}'}
 
     def refresh_access_token(user):
         try:
@@ -187,14 +257,28 @@ def create_app():
                 # Преобразуем данные EVE ESI API в формат, ожидаемый frontend
                 transformed_jobs = []
                 for job in jobs_data:
+                    # Получаем название продукта с кэшированием
+                    product_type_id = job.get('product_type_id')
+                    product_info = get_cached_type_info(product_type_id) if product_type_id else {'name': 'Unknown Product'}
+                    product_name = product_info.get('name', f'Type {product_type_id}')
+                    
+                    # Получаем название локации с кэшированием
+                    location_id = job.get('location_id')
+                    location_info = get_cached_location_info(location_id) if location_id else {'name': 'Unknown Location'}
+                    location_name = location_info.get('name', f'Location {location_id}')
+                    
                     transformed_job = {
                         'job_id': job.get('job_id'),
-                        'product_name': job.get('product_type_id', 'Unknown Product'),  # EVE ESI возвращает ID, а не название
+                        'product_name': product_name,
+                        'product_type_id': job.get('product_type_id'),
                         'activity_id': job.get('activity_id'),
                         'start_date': job.get('start_date'),
                         'end_date': job.get('end_date'),
-                        'location_name': f"Location {job.get('location_id', 'Unknown')}",  # EVE ESI возвращает ID локации
-                        'status': 'in-progress' if job.get('status') == 'active' else 'completed'
+                        'location_name': location_name,
+                        'location_id': job.get('location_id'),
+                        'status': 'in-progress' if job.get('status') == 'active' else 'completed',
+                        'runs': job.get('runs', 1),
+                        'cost': job.get('cost', 0)
                     }
                     transformed_jobs.append(transformed_job)
                 
@@ -322,6 +406,72 @@ def create_app():
         except Exception as e:
             print(f"Error checking token scopes: {str(e)}")
             return jsonify({'error': f'Ошибка проверки скоупов: {str(e)}'}), 500
+
+    @app.route('/get_character_portrait/<int:character_id>')
+    def get_character_portrait(character_id):
+        return jsonify({
+            'portrait_url': f'https://images.evetech.net/characters/{character_id}/portrait?size=128'
+        })
+
+    @app.route('/get_type_info/<int:type_id>')
+    def get_type_info(type_id):
+        try:
+            type_info = get_cached_type_info(type_id)
+            return jsonify(type_info)
+        except Exception as e:
+            return jsonify({'error': f'Ошибка получения информации о типе: {str(e)}'}), 500
+
+    @app.route('/get_location_info/<int:location_id>')
+    def get_location_info(location_id):
+        try:
+            location_info = get_cached_location_info(location_id)
+            return jsonify(location_info)
+        except Exception as e:
+            return jsonify({'error': f'Ошибка получения информации о локации: {str(e)}'}), 500
+
+    @app.route('/get_character_skills/<int:character_id>')
+    def get_character_skills(character_id):
+        try:
+            user = User.query.filter_by(character_id=character_id).first()
+            if not user:
+                return jsonify({'error': 'Персонаж не найден'}), 404
+            
+            if not refresh_access_token(user):
+                return jsonify({'error': 'Не удалось обновить токен'}), 401
+            
+            headers = {'Authorization': f'Bearer {user.access_token}'}
+            resp = requests.get(f'https://esi.evetech.net/latest/characters/{character_id}/skills/', headers=headers)
+            
+            if resp.status_code == 200:
+                skills_data = resp.json()
+                return jsonify(skills_data)
+            else:
+                return jsonify({'error': 'Не удалось получить навыки'}), 500
+                
+        except Exception as e:
+            return jsonify({'error': f'Ошибка получения навыков: {str(e)}'}), 500
+
+    @app.route('/get_character_blueprints/<int:character_id>')
+    def get_character_blueprints(character_id):
+        try:
+            user = User.query.filter_by(character_id=character_id).first()
+            if not user:
+                return jsonify({'error': 'Персонаж не найден'}), 404
+            
+            if not refresh_access_token(user):
+                return jsonify({'error': 'Не удалось обновить токен'}), 401
+            
+            headers = {'Authorization': f'Bearer {user.access_token}'}
+            resp = requests.get(f'https://esi.evetech.net/latest/characters/{character_id}/blueprints/', headers=headers)
+            
+            if resp.status_code == 200:
+                blueprints_data = resp.json()
+                return jsonify(blueprints_data)
+            else:
+                return jsonify({'error': 'Не удалось получить блюпринты'}), 500
+                
+        except Exception as e:
+            return jsonify({'error': f'Ошибка получения блюпринтов: {str(e)}'}), 500
 
     return app
 

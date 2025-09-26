@@ -189,6 +189,9 @@ export default {
           if (detailsResponse.ok) {
             this.activities[character.character_id] =
               await detailsResponse.json();
+
+            // Загружаем дополнительные данные для персонажа
+            await this.loadCharacterDetails(character.character_id);
           } else if (detailsResponse.status === 401) {
             const errorData = await detailsResponse.json();
             if (errorData.requires_reauth) {
@@ -336,6 +339,77 @@ export default {
         alert("Ошибка подключения к серверу.");
       }
     }
+  },
+
+  // Загрузка дополнительных данных для персонажа
+  async loadCharacterDetails(characterId) {
+    try {
+      // Загружаем навыки
+      const skillsResponse = await fetch(
+        `${this.apiBaseUrl}/get_character_skills/${characterId}`
+      );
+      if (skillsResponse.ok) {
+        const skills = await skillsResponse.json();
+        console.log(`Skills for character ${characterId}:`, skills);
+      }
+
+      // Загружаем блюпринты
+      const blueprintsResponse = await fetch(
+        `${this.apiBaseUrl}/get_character_blueprints/${characterId}`
+      );
+      if (blueprintsResponse.ok) {
+        const blueprints = await blueprintsResponse.json();
+        console.log(`Blueprints for character ${characterId}:`, blueprints);
+      }
+
+      // Загружаем портрет
+      const portraitResponse = await fetch(
+        `${this.apiBaseUrl}/get_character_portrait/${characterId}`
+      );
+      if (portraitResponse.ok) {
+        const portrait = await portraitResponse.json();
+        console.log(`Portrait for character ${characterId}:`, portrait);
+      }
+    } catch (error) {
+      console.error(
+        `Error loading details for character ${characterId}:`,
+        error
+      );
+    }
+  },
+
+  // Загрузка информации о типе продукта
+  async loadTypeInfo(typeId) {
+    try {
+      const response = await fetch(
+        `${this.apiBaseUrl}/get_type_info/${typeId}`
+      );
+      if (response.ok) {
+        const typeInfo = await response.json();
+        console.log(`Type info for ${typeId}:`, typeInfo);
+        return typeInfo;
+      }
+    } catch (error) {
+      console.error(`Error loading type info for ${typeId}:`, error);
+    }
+    return null;
+  },
+
+  // Загрузка информации о локации
+  async loadLocationInfo(locationId) {
+    try {
+      const response = await fetch(
+        `${this.apiBaseUrl}/get_location_info/${locationId}`
+      );
+      if (response.ok) {
+        const locationInfo = await response.json();
+        console.log(`Location info for ${locationId}:`, locationInfo);
+        return locationInfo;
+      }
+    } catch (error) {
+      console.error(`Error loading location info for ${locationId}:`, error);
+    }
+    return null;
   },
 };
 </script>
