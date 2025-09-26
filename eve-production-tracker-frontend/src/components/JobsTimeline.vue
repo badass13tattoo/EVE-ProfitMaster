@@ -522,7 +522,6 @@ export default {
           width: size,
           height: size,
           borderRadius: "3px",
-          zIndex: 10, // Убеждаемся что квадратик поверх линий
         };
       }
 
@@ -893,8 +892,6 @@ export default {
 }
 
 .job-bar.completed-job-bar {
-  height: 10px !important;
-  width: 10px !important;
   animation: pulse 2s infinite;
   z-index: 20;
   position: sticky;
