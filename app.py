@@ -253,6 +253,19 @@ def create_app():
             return jsonify({'message': 'Персонаж успешно удален'}), 200
         return jsonify({'error': 'Персонаж не найден'}), 404
 
+    @app.route('/reset_database', methods=['POST'])
+    def reset_database():
+        try:
+            # Удаляем все записи из таблицы User
+            User.query.delete()
+            db.session.commit()
+            
+            print("Database reset completed - all users removed")
+            return jsonify({'message': 'База данных успешно очищена. Все персонажи удалены.'}), 200
+        except Exception as e:
+            print(f"Error resetting database: {str(e)}")
+            return jsonify({'error': f'Ошибка очистки базы данных: {str(e)}'}), 500
+
     return app
 
 app = create_app()

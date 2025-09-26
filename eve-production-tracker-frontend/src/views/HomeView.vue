@@ -64,6 +64,9 @@
           <button @click="loadMockData" class="mock-login-button">
             Демо режим (тестовые данные)
           </button>
+          <button @click="resetDatabase" class="reset-database-button">
+            Очистить базу данных
+          </button>
         </div>
       </div>
     </div>
@@ -284,6 +287,41 @@ export default {
     } catch (error) {
       // Игнорируем ошибки при первом запуске - пользователь не авторизован
       console.log("Пользователь не авторизован или сервер недоступен");
+    }
+  },
+
+  // Очистка базы данных
+  async resetDatabase() {
+    if (
+      confirm(
+        "Вы уверены, что хотите очистить базу данных? Все персонажи будут удалены."
+      )
+    ) {
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/reset_database`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          alert(result.message);
+          // Очищаем локальные данные
+          this.characters = [];
+          this.activities = {};
+          this.jobs = {};
+          this.isLoggedIn = false;
+          this.selectedCharacterId = null;
+        } else {
+          const error = await response.json();
+          alert(`Ошибка: ${error.error}`);
+        }
+      } catch (error) {
+        console.error("Ошибка очистки базы данных:", error);
+        alert("Ошибка подключения к серверу.");
+      }
     }
   },
 };
@@ -508,5 +546,24 @@ html {
   background-color: #3a7bc8;
   transform: translateY(-1px);
   box-shadow: 0 3px 6px rgba(78, 154, 239, 0.3);
+}
+
+.reset-database-button {
+  background-color: #dc3545;
+  color: white;
+  border: 2px solid transparent;
+  padding: 15px 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.reset-database-button:hover {
+  background-color: #c82333;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(220, 53, 69, 0.3);
 }
 </style>
