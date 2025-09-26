@@ -122,7 +122,7 @@ export default {
   overflow-y: scroll;
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
-  padding-bottom: 40px; /* Добавляем больше отступа снизу для кнопки */
+  padding-bottom: 80px; /* Добавляем больше отступа снизу для кнопки */
 }
 .characters-list::-webkit-scrollbar {
   display: none;
@@ -227,11 +227,12 @@ export default {
   justify-content: center;
   border-style: dashed;
   color: #888;
-  height: 60px;
+  height: 80px; /* Увеличиваем высоту кнопки */
   border-radius: 8px;
   border: 2px solid #444;
   cursor: pointer;
   transition: all 0.2s;
+  margin-bottom: 20px; /* Добавляем отступ снизу для кнопки */
 }
 .add-char-card:hover {
   background-color: #333;

@@ -17,6 +17,18 @@
             <i :class="navItem.icon"></i>
             <span class="nav-label">{{ navItem.label }}</span>
           </button>
+          <div class="nav-actions">
+            <button
+              @click="forceRefresh"
+              class="refresh-button"
+              :disabled="loading"
+              title="Принудительно обновить данные"
+            >
+              <i class="refresh-icon">🔄</i>
+              <span v-if="loading">Обновление...</span>
+              <span v-else>Обновить</span>
+            </button>
+          </div>
         </nav>
       </div>
 
@@ -68,6 +80,9 @@
           <button @click="resetDatabase" class="reset-database-button">
             Очистить базу данных
           </button>
+          <button @click="clearCache" class="clear-cache-button">
+            Очистить кэш
+          </button>
         </div>
       </div>
     </div>
@@ -78,6 +93,7 @@ import CharacterPanel from "@/components/CharacterPanel.vue";
 import JobsTimeline from "@/components/JobsTimeline.vue";
 import ProjectView from "@/components/ProjectView.vue";
 import { mockCharacters, mockActivities, mockJobs } from "@/mock/mockData.js";
+import { dataCache } from "@/utils/cache.js";
 import { reactive } from "vue";
 export default {
   name: "HomeView",
@@ -170,8 +186,49 @@ export default {
       this.loading = false;
     },
 
+    // Загрузка кэшированных данных
+    loadCachedData() {
+      const cachedData = dataCache.loadFromCache();
+      if (cachedData) {
+        console.log("Загружаем кэшированные данные");
+        this.characters = cachedData.characters || [];
+        this.activities = cachedData.activities || {};
+        this.jobs = cachedData.jobs || {};
+        this.planets = cachedData.planets || {};
+        this.isLoggedIn = this.characters.length > 0;
+
+        // Показываем информацию о кэше
+        const cacheInfo = dataCache.getCacheInfo();
+        if (cacheInfo) {
+          console.log(
+            `Кэш: ${cacheInfo.charactersCount} персонажей, ${cacheInfo.jobsCount} работ, возраст: ${cacheInfo.cacheAge}с`
+          );
+        }
+
+        return true;
+      }
+      return false;
+    },
+
+    // Сохранение данных в кэш
+    saveToCache() {
+      dataCache.saveToCache({
+        characters: this.characters,
+        activities: this.activities,
+        jobs: this.jobs,
+        planets: this.planets,
+      });
+    },
+
     // Загрузка реальных данных из API
-    async loadRealData() {
+    async loadRealData(useCache = true) {
+      // Сначала пытаемся загрузить из кэша
+      if (useCache && this.loadCachedData()) {
+        // Запускаем обновление в фоне
+        this.updateDataInBackground();
+        return;
+      }
+
       this.loading = true;
       console.log("Starting loadRealData...");
       try {
@@ -282,11 +339,114 @@ export default {
 
         console.log("Final jobs data after adding planets:", this.jobs);
         this.isLoggedIn = true;
+
+        // Сохраняем данные в кэш
+        this.saveToCache();
       } catch (error) {
         console.error("Ошибка загрузки данных:", error);
         alert("Ошибка загрузки данных. Проверьте подключение к серверу.");
       } finally {
         this.loading = false;
+      }
+    },
+
+    // Фоновое обновление данных
+    async updateDataInBackground() {
+      console.log("Запускаем фоновое обновление данных...");
+      try {
+        // Загружаем персонажей
+        const charactersResponse = await fetch(
+          `${this.apiBaseUrl}/get_characters`
+        );
+        if (charactersResponse.ok) {
+          const newCharacters = await charactersResponse.json();
+
+          // Обновляем только если данные изменились
+          if (
+            JSON.stringify(newCharacters) !== JSON.stringify(this.characters)
+          ) {
+            console.log("Обнаружены изменения в персонажах, обновляем...");
+            this.characters = newCharacters;
+          }
+        }
+
+        // Загружаем активности для каждого персонажа
+        for (const character of this.characters) {
+          const detailsResponse = await fetch(
+            `${this.apiBaseUrl}/get_character_details/${character.character_id}`
+          );
+          if (detailsResponse.ok) {
+            const newActivity = await detailsResponse.json();
+
+            // Обновляем только если данные изменились
+            if (
+              JSON.stringify(newActivity) !==
+              JSON.stringify(this.activities[character.character_id])
+            ) {
+              console.log(
+                `Обновляем активности для персонажа ${character.character_name}`
+              );
+              this.activities[character.character_id] = newActivity;
+            }
+          }
+        }
+
+        // Загружаем работы
+        const jobsResponse = await fetch(`${this.apiBaseUrl}/get_jobs`);
+        if (jobsResponse.ok) {
+          const newJobs = await jobsResponse.json();
+
+          // Обновляем только если данные изменились
+          if (JSON.stringify(newJobs) !== JSON.stringify(this.jobs)) {
+            console.log("Обнаружены изменения в работах, обновляем...");
+            this.jobs = newJobs;
+          }
+        }
+
+        // Загружаем планеты
+        for (const character of this.characters) {
+          try {
+            const planetsResponse = await fetch(
+              `${this.apiBaseUrl}/get_character_planets/${character.character_id}`
+            );
+            if (planetsResponse.ok) {
+              const newPlanets = await planetsResponse.json();
+
+              // Обновляем только если данные изменились
+              if (
+                JSON.stringify(newPlanets) !==
+                JSON.stringify(this.planets[character.character_id])
+              ) {
+                console.log(
+                  `Обновляем планеты для персонажа ${character.character_name}`
+                );
+                this.planets[character.character_id] = newPlanets;
+
+                // Добавляем работы планет к обычным работам
+                if (this.jobs[character.character_id]) {
+                  for (const planet of newPlanets) {
+                    if (planet.jobs && planet.jobs.length > 0) {
+                      this.jobs[character.character_id] = this.jobs[
+                        character.character_id
+                      ].concat(planet.jobs);
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error(
+              `Error loading planets for character ${character.character_id}:`,
+              error
+            );
+          }
+        }
+
+        // Сохраняем обновленные данные в кэш
+        this.saveToCache();
+        console.log("Фоновое обновление завершено");
+      } catch (error) {
+        console.error("Ошибка фонового обновления:", error);
       }
     },
 
@@ -399,6 +559,32 @@ export default {
       return null;
     },
 
+    // Принудительное обновление данных
+    async forceRefresh() {
+      this.loading = true;
+      try {
+        await this.loadRealData(false); // Принудительно загружаем без кэша
+        alert("Данные успешно обновлены");
+      } catch (error) {
+        console.error("Ошибка принудительного обновления:", error);
+        alert("Ошибка обновления данных");
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // Очистка кэша
+    clearCache() {
+      if (
+        confirm(
+          "Очистить кэш данных? При следующей загрузке данные будут загружены заново."
+        )
+      ) {
+        dataCache.clearCache();
+        alert("Кэш очищен");
+      }
+    },
+
     // Очистка базы данных
     async resetDatabase() {
       if (
@@ -417,12 +603,14 @@ export default {
           if (response.ok) {
             const result = await response.json();
             alert(result.message);
-            // Очищаем локальные данные
+            // Очищаем локальные данные и кэш
             this.characters = [];
             this.activities = {};
             this.jobs = {};
+            this.planets = {};
             this.isLoggedIn = false;
             this.selectedCharacterId = null;
+            dataCache.clearCache();
           } else {
             const error = await response.json();
             alert(`Ошибка: ${error.error}`);
@@ -444,12 +632,20 @@ export default {
     if (authSuccess === "success") {
       // Убираем параметр из URL
       window.history.replaceState({}, document.title, window.location.pathname);
-      // Принудительно загружаем данные после авторизации
-      await this.loadRealData();
+      // Принудительно загружаем данные после авторизации (без кэша)
+      await this.loadRealData(false);
       return;
     }
 
-    // Проверяем, есть ли персонажи в системе (значит пользователь авторизован)
+    // Сначала пытаемся загрузить из кэша
+    if (this.loadCachedData()) {
+      console.log("Данные загружены из кэша, запускаем фоновое обновление");
+      // Запускаем фоновое обновление
+      this.updateDataInBackground();
+      return;
+    }
+
+    // Если кэша нет, проверяем авторизацию через API
     try {
       const charactersResponse = await fetch(
         `${this.apiBaseUrl}/get_characters`
@@ -484,6 +680,8 @@ html {
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
+  padding-bottom: 20px; /* Добавляем отступ снизу для всего приложения */
+  box-sizing: border-box;
 }
 .main-scroll-container {
   display: flex;
@@ -507,6 +705,14 @@ html {
   min-height: 60px;
   align-items: center;
   padding-left: 20px;
+  justify-content: space-between;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 20px;
 }
 
 .nav-button {
@@ -707,5 +913,65 @@ html {
   background-color: #c82333;
   transform: translateY(-1px);
   box-shadow: 0 3px 6px rgba(220, 53, 69, 0.3);
+}
+
+.refresh-button {
+  background-color: #28a745;
+  color: white;
+  border: 2px solid transparent;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.refresh-button:hover:not(:disabled) {
+  background-color: #218838;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(40, 167, 69, 0.3);
+}
+
+.refresh-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.refresh-icon {
+  font-size: 16px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.clear-cache-button {
+  background-color: #ffc107;
+  color: #212529;
+  border: 2px solid transparent;
+  padding: 15px 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.clear-cache-button:hover {
+  background-color: #e0a800;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(255, 193, 7, 0.3);
 }
 </style>

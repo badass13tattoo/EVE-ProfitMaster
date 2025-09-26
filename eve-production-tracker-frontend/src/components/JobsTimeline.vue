@@ -407,9 +407,19 @@ export default {
         let placed = false;
         // Попробуем найти подходящую линию для работы
         for (const lane of lanes) {
-          const lastJobInLane = lane[lane.length - 1];
-          // Проверяем есть ли достаточно места между концом последней работы и началом новой
-          if (new Date(lastJobInLane.end_date) <= new Date(job.start_date)) {
+          // Проверяем все работы в линии на перекрытие
+          let hasOverlap = false;
+          for (const existingJob of lane) {
+            if (
+              new Date(job.start_date) < new Date(existingJob.end_date) &&
+              new Date(existingJob.start_date) < new Date(job.end_date)
+            ) {
+              hasOverlap = true;
+              break;
+            }
+          }
+
+          if (!hasOverlap) {
             lane.push(job);
             placed = true;
             break;
@@ -426,17 +436,54 @@ export default {
         return lanes;
       }
 
-      const MAX_LANES = 10; // Ограничиваем для включения вертикальной прокрутки
+      // Определяем максимальное количество линий в зависимости от масштаба
+      const MAX_LANES =
+        this.scaleMode === "month" ? 15 : this.scaleMode === "week" ? 8 : 5;
+
       if (lanes.length > MAX_LANES) {
         const newLanes = lanes.slice(0, MAX_LANES);
+
+        // Распределяем оставшиеся работы по существующим линиям
         for (let i = MAX_LANES; i < lanes.length; i++) {
-          const targetLaneIndex = i % MAX_LANES;
-          newLanes[targetLaneIndex].push(...lanes[i]);
-          newLanes[targetLaneIndex].sort(
-            (a, b) => new Date(a.start_date) - new Date(b.start_date)
-          );
+          const jobsToPlace = lanes[i];
+
+          for (const job of jobsToPlace) {
+            let placed = false;
+
+            // Пытаемся разместить в существующих линиях
+            for (const lane of newLanes) {
+              let hasOverlap = false;
+              for (const existingJob of lane) {
+                if (
+                  new Date(job.start_date) < new Date(existingJob.end_date) &&
+                  new Date(existingJob.start_date) < new Date(job.end_date)
+                ) {
+                  hasOverlap = true;
+                  break;
+                }
+              }
+
+              if (!hasOverlap) {
+                lane.push(job);
+                placed = true;
+                break;
+              }
+            }
+
+            // Если не удалось разместить, добавляем в первую линию и помечаем как перекрывающуюся
+            if (!placed) {
+              newLanes[0].push(job);
+              job.hasOverlap = true;
+            }
+          }
         }
 
+        // Сортируем работы в каждой линии по времени начала
+        for (const lane of newLanes) {
+          lane.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+        }
+
+        // Помечаем перекрывающиеся работы
         for (const lane of newLanes) {
           for (let i = 0; i < lane.length; i++) {
             for (let j = i + 1; j < lane.length; j++) {
@@ -452,6 +499,7 @@ export default {
             }
           }
         }
+
         return newLanes;
       }
 
@@ -464,11 +512,17 @@ export default {
         const endOffsetMs =
           new Date(job.end_date).getTime() - this.now.getTime();
         const left = (endOffsetMs / 3600e3) * this.pixelsPerHour;
+
+        // Адаптивный размер квадратика в зависимости от масштаба
+        const baseSize = Math.max(8, Math.min(20, this.pixelsPerHour * 0.5));
+        const size = `${baseSize}px`;
+
         return {
           transform: `translateX(${left}px)`,
-          width: "10px",
-          height: "10px",
-          borderRadius: "2px",
+          width: size,
+          height: size,
+          borderRadius: "3px",
+          zIndex: 10, // Убеждаемся что квадратик поверх линий
         };
       }
 
@@ -842,6 +896,8 @@ export default {
   height: 10px !important;
   width: 10px !important;
   animation: pulse 2s infinite;
+  z-index: 10;
+  position: relative;
 }
 
 .job-bar .completed-job {
@@ -849,6 +905,8 @@ export default {
   height: 10px !important;
   border-radius: 2px !important;
   animation: pulse 2s infinite;
+  z-index: 10;
+  position: relative;
 }
 .job-bar.has-overlap {
   box-shadow: 0 0 8px 1px rgba(0, 0, 0, 0.7);
