@@ -38,24 +38,68 @@ def create_app():
     cors.init_app(app)
 
     def refresh_access_token(user):
-        CLIENT_ID = os.environ.get('EVE_CLIENT_ID')
-        SECRET_KEY = os.environ.get('EVE_SECRET_KEY')
-        auth_str = f"{CLIENT_ID}:{SECRET_KEY}"
-        encoded_auth_str = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
-        token_url = 'https://login.eveonline.com/v2/oauth/token'
-        headers = {'Authorization': f'Basic {encoded_auth_str}', 'Content-Type': 'application/x-www-form-urlencoded'}
-        data = {'grant_type': 'refresh_token', 'refresh_token': user.refresh_token}
-        response = requests.post(token_url, headers=headers, data=data)
-        token_data = response.json()
-        if 'access_token' in token_data:
-            user.access_token = token_data['access_token']
-            user.refresh_token = token_data.get('refresh_token', user.refresh_token)
-            db.session.commit()
-            return True
-        return False
+        try:
+            CLIENT_ID = os.environ.get('EVE_CLIENT_ID')
+            SECRET_KEY = os.environ.get('EVE_SECRET_KEY')
+            
+            if not CLIENT_ID or not SECRET_KEY:
+                print("Missing EVE_CLIENT_ID or EVE_SECRET_KEY environment variables")
+                return False
+                
+            auth_str = f"{CLIENT_ID}:{SECRET_KEY}"
+            encoded_auth_str = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
+            token_url = 'https://login.eveonline.com/v2/oauth/token'
+            headers = {'Authorization': f'Basic {encoded_auth_str}', 'Content-Type': 'application/x-www-form-urlencoded'}
+            data = {'grant_type': 'refresh_token', 'refresh_token': user.refresh_token}
+            
+            print(f"Refreshing token for user {user.character_name}")
+            response = requests.post(token_url, headers=headers, data=data)
+            print(f"Token refresh response status: {response.status_code}")
+            
+            if response.status_code != 200:
+                print(f"Token refresh failed: {response.text}")
+                return False
+                
+            token_data = response.json()
+            if 'access_token' in token_data:
+                user.access_token = token_data['access_token']
+                user.refresh_token = token_data.get('refresh_token', user.refresh_token)
+                db.session.commit()
+                print("Token refreshed successfully")
+                return True
+            else:
+                print(f"Token refresh response missing access_token: {token_data}")
+                return False
+        except Exception as e:
+            print(f"Error refreshing token: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
 
     @app.route('/')
     def home(): return "Бэкенд EVE Profit Master работает!"
+    
+    @app.route('/health')
+    def health():
+        try:
+            # Test database connection
+            user_count = User.query.count()
+            return jsonify({
+                'status': 'healthy',
+                'database_connected': True,
+                'user_count': user_count,
+                'environment_vars': {
+                    'EVE_CLIENT_ID': bool(os.environ.get('EVE_CLIENT_ID')),
+                    'EVE_SECRET_KEY': bool(os.environ.get('EVE_SECRET_KEY')),
+                    'DATABASE_URL': bool(os.environ.get('DATABASE_URL'))
+                }
+            })
+        except Exception as e:
+            return jsonify({
+                'status': 'unhealthy',
+                'database_connected': False,
+                'error': str(e)
+            }), 500
 
     @app.route('/login')
     def login():
@@ -129,31 +173,53 @@ def create_app():
 
     @app.route('/get_character_details/<int:character_id>')
     def get_character_details(character_id):
-        user = User.query.filter_by(character_id=character_id).first()
-        if not user: return jsonify({'error': 'Персонаж не найден'}), 404
-        if not refresh_access_token(user): return jsonify({'error': 'Не удалось обновить токен'}), 500
-        
-        headers = {'Authorization': f'Bearer {user.access_token}'}
-        base_url = 'https://esi.evetech.net/latest/characters'
-        
-        skills_resp = requests.get(f'{base_url}/{character_id}/skills/', headers=headers)
-        jobs_resp = requests.get(f'{base_url}/{character_id}/industry/jobs/', headers=headers)
-        planets_resp = requests.get(f'{base_url}/{character_id}/planets/', headers=headers)
+        try:
+            print(f"Getting character details for ID: {character_id}")
+            user = User.query.filter_by(character_id=character_id).first()
+            if not user: 
+                print(f"User not found for character_id: {character_id}")
+                return jsonify({'error': 'Персонаж не найден'}), 404
+            
+            print(f"Found user: {user.character_name}")
+            if not refresh_access_token(user): 
+                print("Failed to refresh access token")
+                return jsonify({'error': 'Не удалось обновить токен'}), 500
+            
+            headers = {'Authorization': f'Bearer {user.access_token}'}
+            base_url = 'https://esi.evetech.net/latest/characters'
+            
+            print("Making API requests to EVE ESI...")
+            skills_resp = requests.get(f'{base_url}/{character_id}/skills/', headers=headers)
+            jobs_resp = requests.get(f'{base_url}/{character_id}/industry/jobs/', headers=headers)
+            planets_resp = requests.get(f'{base_url}/{character_id}/planets/', headers=headers)
 
-        skills = skills_resp.json().get('skills', []) if skills_resp.status_code == 200 else []
-        jobs = jobs_resp.json() if jobs_resp.status_code == 200 else []
-        planets = planets_resp.json() if planets_resp.status_code == 200 else []
+            print(f"Skills API status: {skills_resp.status_code}")
+            print(f"Jobs API status: {jobs_resp.status_code}")
+            print(f"Planets API status: {planets_resp.status_code}")
 
-        def get_skill(skill_id): return next((s.get('active_skill_level', 0) for s in skills if s.get('skill_id') == skill_id), 0)
+            skills = skills_resp.json().get('skills', []) if skills_resp.status_code == 200 else []
+            jobs = jobs_resp.json() if jobs_resp.status_code == 200 else []
+            planets = planets_resp.json() if planets_resp.status_code == 200 else []
 
-        return jsonify({
-            'lines': {
-                'manufacturing': {'total': 1 + get_skill(3385) + get_skill(3389), 'used': sum(1 for j in jobs if j.get('activity_id') == 1)},
-                'research': {'total': 1 + get_skill(3405) + get_skill(24625), 'used': sum(1 for j in jobs if j.get('activity_id') in [3, 4, 5, 8])},
-                'reactions': {'total': get_skill(46242) + get_skill(46241) + get_skill(45746), 'used': sum(1 for j in jobs if j.get('activity_id') == 6)}
-            },
-            'planets': {'total': 1 + get_skill(2495), 'used': len(planets)}
-        })
+            def get_skill(skill_id): return next((s.get('active_skill_level', 0) for s in skills if s.get('skill_id') == skill_id), 0)
+
+            result = {
+                'lines': {
+                    'manufacturing': {'total': 1 + get_skill(3385) + get_skill(3389), 'used': sum(1 for j in jobs if j.get('activity_id') == 1)},
+                    'research': {'total': 1 + get_skill(3405) + get_skill(24625), 'used': sum(1 for j in jobs if j.get('activity_id') in [3, 4, 5, 8])},
+                    'reactions': {'total': get_skill(46242) + get_skill(46241) + get_skill(45746), 'used': sum(1 for j in jobs if j.get('activity_id') == 6)}
+                },
+                'planets': {'total': 1 + get_skill(2495), 'used': len(planets)}
+            }
+            
+            print(f"Returning result: {result}")
+            return jsonify(result)
+            
+        except Exception as e:
+            print(f"Error in get_character_details: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Внутренняя ошибка сервера: {str(e)}'}), 500
 
     @app.route('/remove_character', methods=['POST'])
     def remove_character():
