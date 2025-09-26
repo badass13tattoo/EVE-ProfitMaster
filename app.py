@@ -535,6 +535,29 @@ def create_app():
                                 if pin.get('state') == 'active':
                                     active_jobs += 1
                         
+                        # Создаем "работы" для планеты
+                        planet_jobs = []
+                        
+                        # Добавляем работу для каждого экстрактора
+                        for extractor in extractors:
+                            if extractor.get('state') == 'active':
+                                planet_jobs.append({
+                                    'job_id': f"planet_{planet['planet_id']}_extractor_{extractor.get('pin_id', 'unknown')}",
+                                    'product_name': f"Extractor on {planet_info.get('name', f'Planet {planet["planet_id"]}')}",
+                                    'product_type_id': extractor.get('type_id', 2250),
+                                    'activity_id': 7,  # Planet Interaction
+                                    'start_date': extractor.get('start_time', ''),
+                                    'end_date': extractor.get('expiry_time', ''),
+                                    'location_name': f"{planet_info.get('name', f'Planet {planet["planet_id"]}')} - {system_info.get('name', f'System {planet["solar_system_id"]}')}",
+                                    'location_id': planet['planet_id'],
+                                    'status': 'active' if not needs_attention else 'needs_attention',
+                                    'runs': 1,
+                                    'cost': 0,
+                                    'planet_id': planet['planet_id'],
+                                    'extractor_id': extractor.get('pin_id'),
+                                    'is_planet_job': True
+                                })
+                        
                         planet_data = {
                             'planet_id': planet['planet_id'],
                             'planet_name': planet_info.get('name', f'Planet {planet["planet_id"]}'),
@@ -544,6 +567,7 @@ def create_app():
                             'needs_attention': needs_attention,
                             'active_extractors': active_extractors,
                             'active_jobs': active_jobs,
+                            'jobs': planet_jobs,
                             'extractors': extractors,
                             'pins': pins
                         }

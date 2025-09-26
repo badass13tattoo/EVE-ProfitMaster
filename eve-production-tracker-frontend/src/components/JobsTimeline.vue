@@ -146,50 +146,6 @@
                 </div>
               </template>
             </div>
-
-            <!-- Отображение планет персонажа -->
-            <div
-              v-if="
-                planets[char.character_id] &&
-                planets[char.character_id].length > 0
-              "
-              class="planets-section"
-            >
-              <div class="planets-header">
-                <span class="planets-title"
-                  >🪐 Planets ({{ planets[char.character_id].length }})</span
-                >
-              </div>
-              <div class="planets-list">
-                <div
-                  v-for="planet in planets[char.character_id]"
-                  :key="planet.planet_id"
-                  class="planet-item"
-                  :class="{ 'needs-attention': planet.needs_attention }"
-                >
-                  <div class="planet-info">
-                    <span class="planet-name">{{ planet.planet_name }}</span>
-                    <span class="planet-system">{{
-                      planet.solar_system_name
-                    }}</span>
-                  </div>
-                  <div class="planet-stats">
-                    <span
-                      class="extractors"
-                      v-if="planet.active_extractors > 0"
-                    >
-                      ⚡ {{ planet.active_extractors }}
-                    </span>
-                    <span class="jobs" v-if="planet.active_jobs > 0">
-                      🔧 {{ planet.active_jobs }}
-                    </span>
-                    <span class="attention" v-if="planet.needs_attention">
-                      ⚠️ Needs attention
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -200,7 +156,20 @@
       <small>Location: {{ tooltip.job.location_name }}</small
       ><br /><br />
       Type: {{ getJobType(tooltip.job.activity_id) }}<br />
-      completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
+      <span v-if="tooltip.job.is_planet_job">
+        <span
+          v-if="tooltip.job.status === 'needs_attention'"
+          style="color: #e06c75"
+        >
+          ⚠️ Needs attention
+        </span>
+        <span v-else>
+          completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
+        </span>
+      </span>
+      <span v-else>
+        completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
+      </span>
     </div>
   </div>
 </template>
@@ -530,6 +499,7 @@ export default {
           3: "#239BA7",
           8: "#239BA7",
           6: "#7ADAA5",
+          7: "#FF6B6B", // Planet Interaction
         }[id] || "#7f8c8d"
       );
     },
@@ -541,11 +511,18 @@ export default {
           4: "Material Efficiency",
           5: "Time Efficiency",
           6: "Reactions",
+          7: "Planet Interaction",
           8: "Invention",
         }[id] || "Unknown"
       );
     },
     isJobCompleted(job) {
+      // Для планетных работ проверяем статус
+      if (job.is_planet_job) {
+        return (
+          job.status === "needs_attention" || new Date(job.end_date) <= this.now
+        );
+      }
       return new Date(job.end_date) <= this.now;
     },
     getTimeRemaining(endDate) {
@@ -940,92 +917,5 @@ export default {
     opacity: 1;
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
   }
-}
-
-/* Стили для планет */
-.planets-section {
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #1e1e1e;
-  border-radius: 6px;
-  border: 1px solid #333;
-}
-
-.planets-header {
-  margin-bottom: 8px;
-}
-
-.planets-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #61afef;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.planets-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.planet-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 8px;
-  background-color: #2c2c2c;
-  border-radius: 4px;
-  border: 1px solid #444;
-  transition: all 0.2s ease;
-}
-
-.planet-item.needs-attention {
-  border-color: #e06c75;
-  background-color: #2d1b1b;
-  animation: pulse 2s infinite;
-}
-
-.planet-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.planet-name {
-  font-size: 11px;
-  font-weight: 500;
-  color: #e0e0e0;
-}
-
-.planet-system {
-  font-size: 10px;
-  color: #888;
-}
-
-.planet-stats {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.planet-stats span {
-  font-size: 10px;
-  padding: 2px 4px;
-  border-radius: 3px;
-  background-color: #333;
-}
-
-.extractors {
-  color: #98c379;
-}
-
-.jobs {
-  color: #61afef;
-}
-
-.attention {
-  color: #e06c75;
-  font-weight: 600;
 }
 </style>

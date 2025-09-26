@@ -307,6 +307,17 @@ export default {
           // Сохраняем данные о планетах
           this.planets[characterId] = planets;
 
+          // Добавляем работы планет к обычным работам
+          if (this.jobs[characterId]) {
+            for (const planet of planets) {
+              if (planet.jobs && planet.jobs.length > 0) {
+                this.jobs[characterId] = this.jobs[characterId].concat(
+                  planet.jobs
+                );
+              }
+            }
+          }
+
           // Анализируем планеты, требующие внимания
           const planetsNeedingAttention = planets.filter(
             (planet) => planet.needs_attention
