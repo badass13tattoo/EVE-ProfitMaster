@@ -183,7 +183,7 @@ def create_app():
         print(f"Using callback URL: {CALLBACK_URL}")
         print(f"Client ID: {CLIENT_ID}")
         
-        scopes = "publicData esi-skills.read_skills.v1 esi-wallet.read_character_wallet.v1 esi-assets.read_assets.v1 esi-planets.manage_planets.v1 esi-industry.read_character_jobs.v1 esi-characters.read_blueprints.v1 esi-industry.read_character_mining.v1 esi-industry.read_corporation_jobs.v1"
+        scopes = "publicData esi-calendar.respond_calendar_events.v1 esi-skills.read_skills.v1 esi-wallet.read_character_wallet.v1 esi-assets.read_assets.v1 esi-planets.manage_planets.v1 esi-markets.structure_markets.v1 esi-industry.read_character_jobs.v1 esi-markets.read_character_orders.v1 esi-characters.read_blueprints.v1"
         params = {'response_type': 'code', 'redirect_uri': CALLBACK_URL, 'client_id': CLIENT_ID, 'scope': scopes, 'state': secrets.token_urlsafe(16)}
         session['oauth_state'] = params['state']
         auth_url = requests.Request('GET', 'https://login.eveonline.com/v2/oauth/authorize', params=params).prepare().url
@@ -228,7 +228,7 @@ def create_app():
         if app.config.get('FLASK_ENV') == 'development':
             return redirect('http://localhost:8080/?auth=success')
         else:
-            return redirect('https://eve-profitmaster-1.onrender.com/?auth=success')
+            return redirect('https://eve-profitmaster.onrender.com/?auth=success')
 
     @app.route('/popup_close')
     def popup_close(): return render_template('popup_close.html')

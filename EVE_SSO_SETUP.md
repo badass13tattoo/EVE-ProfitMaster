@@ -12,11 +12,14 @@
    - **Connection Type**: `Authentication & API Access`
    - **Permissions/Scopes**: Выберите следующие разрешения:
      - `publicData` - базовая информация о персонаже
+     - `esi-calendar.respond_calendar_events.v1` - календарь событий
      - `esi-skills.read_skills.v1` - чтение навыков
      - `esi-wallet.read_character_wallet.v1` - чтение кошелька
      - `esi-assets.read_assets.v1` - чтение ассетов
      - `esi-planets.manage_planets.v1` - управление планетами
+     - `esi-markets.structure_markets.v1` - рынки структур
      - `esi-industry.read_character_jobs.v1` - чтение производственных работ
+     - `esi-markets.read_character_orders.v1` - чтение ордеров персонажа
      - `esi-characters.read_blueprints.v1` - чтение чертежей
 
 5. **Callback URL**:
