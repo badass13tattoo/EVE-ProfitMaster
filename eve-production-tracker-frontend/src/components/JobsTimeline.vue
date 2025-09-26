@@ -579,9 +579,9 @@ export default {
         left: "0",
         right: "0",
         height: `${characterHeight}px`,
-        borderTop: "2px solid #61afef", // Верхняя граница - синяя
-        borderBottom: "2px solid #61afef", // Нижняя граница - синяя
-        backgroundColor: "rgba(97, 175, 239, 0.05)", // Легкий синий фон
+        borderTop: "1px solid #3c414d", // Верхняя граница - тонкая серая
+        borderBottom: "1px solid #3c414d", // Нижняя граница - тонкая серая
+        backgroundColor: "rgba(60, 65, 77, 0.05)", // Легкий серый фон
         zIndex: 5,
         pointerEvents: "none",
         boxSizing: "border-box",
@@ -1474,9 +1474,9 @@ export default {
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 2px solid #61afef;
-  border-bottom: 2px solid #61afef;
-  background-color: rgba(97, 175, 239, 0.05);
+  border-top: 1px solid #3c414d;
+  border-bottom: 1px solid #3c414d;
+  background-color: rgba(60, 65, 77, 0.05);
   z-index: 5;
   pointer-events: none;
   box-sizing: border-box;
@@ -1489,8 +1489,8 @@ export default {
 
 /* Стили для активного персонажа */
 .character-border-line.active-character {
-  border-top: 3px solid #c678dd;
-  border-bottom: 3px solid #c678dd;
+  border-top: 1px solid #c678dd;
+  border-bottom: 1px solid #c678dd;
   background-color: rgba(198, 120, 221, 0.1);
   opacity: 1;
   box-shadow: 0 0 10px rgba(198, 120, 221, 0.3);
