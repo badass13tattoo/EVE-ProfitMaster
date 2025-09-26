@@ -2,19 +2,19 @@
   <div class="timeline-container">
     <div class="timeline-controls">
       <button @click="setScale('day')" :class="{ active: scaleMode === 'day' }">
-        День
+        Day
       </button>
       <button
         @click="setScale('week')"
         :class="{ active: scaleMode === 'week' }"
       >
-        Неделя
+        Week
       </button>
       <button
         @click="setScale('month')"
         :class="{ active: scaleMode === 'month' }"
       >
-        Месяц
+        Month
       </button>
     </div>
     <div
@@ -23,10 +23,8 @@
       @scroll="$emit('scroll', $event)"
       :class="{ 'is-locked': selectedCharacterId }"
     >
-      <div v-if="isLoading" class="loading-indicator">Загрузка данных...</div>
-      <div v-else-if="!hasJobs" class="no-jobs-placeholder">
-        Нет активных работ для отображения.
-      </div>
+      <div v-if="isLoading" class="loading-indicator">Data loading...</div>
+      <div v-else-if="!hasJobs" class="no-jobs-placeholder">No jobs.</div>
       <div
         v-else
         class="timeline-wrapper"
@@ -118,10 +116,10 @@
     <div v-if="tooltip.visible" class="tooltip" :style="tooltipStyle">
       <strong>{{ tooltip.job.product_name }}</strong
       ><br />
-      <small>Локация: {{ tooltip.job.location_name }}</small
+      <small>Location: {{ tooltip.job.location_name }}</small
       ><br /><br />
-      Тип: {{ getJobType(tooltip.job.activity_id) }}<br />
-      Завершится через: {{ getTimeRemaining(tooltip.job.end_date) }}
+      Type: {{ getJobType(tooltip.job.activity_id) }}<br />
+      completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
     </div>
   </div>
 </template>
@@ -371,13 +369,13 @@ export default {
     getJobType(id) {
       return (
         {
-          1: "Производство",
-          3: "Копирование",
-          4: "Мат. эффективность",
-          5: "Врем. эффективность",
-          6: "Реакции",
-          8: "Изобретение",
-        }[id] || "Неизвестно"
+          1: "Manufacturing",
+          3: "Copying",
+          4: "Material Efficiency",
+          5: "Time Efficiency",
+          6: "Reactions",
+          8: "Invention",
+        }[id] || "Unknown"
       );
     },
     getTimeRemaining(endDate) {
@@ -515,8 +513,10 @@ export default {
   padding-bottom: 0;
   border: none;
 }
-.job-lanes-container {
+..job-lanes-container {
   padding: 15px 0;
+  max-height: 120px;
+  overflow: hidden;
 }
 .expanded-jobs-view {
   padding: 20px;

@@ -1,6 +1,6 @@
 <template>
   <div class="character-panel" ref="panel" @scroll="$emit('scroll', $event)">
-    <h2 class="panel-title">Персонажи</h2>
+    <h2 class="panel-title">Characters</h2>
     <div class="characters-list">
       <div
         v-for="char in characters"
@@ -28,28 +28,28 @@
             </button>
           </div>
           <div v-if="activities[char.character_id]" class="activity-grid">
-            <div class="info-line" title="Производство">
+            <div class="info-line" title="MAnufacturing">
               <img src="/icons/manufacturing.svg" class="activity-icon" /><span
                 >{{ activities[char.character_id].lines.manufacturing.used }}/{{
                   activities[char.character_id].lines.manufacturing.total
                 }}</span
               >
             </div>
-            <div class="info-line" title="Исследования">
+            <div class="info-line" title="Research">
               <img src="/icons/research.svg" class="activity-icon" /><span
                 >{{ activities[char.character_id].lines.research.used }}/{{
                   activities[char.character_id].lines.research.total
                 }}</span
               >
             </div>
-            <div class="info-line" title="Реакции">
+            <div class="info-line" title="Reaction">
               <img src="/icons/reactions.svg" class="activity-icon" /><span
                 >{{ activities[char.character_id].lines.reactions.used }}/{{
                   activities[char.character_id].lines.reactions.total
                 }}</span
               >
             </div>
-            <div class="info-line" title="Планеты">
+            <div class="info-line" title="Planets">
               <img src="/icons/planets.svg" class="activity-icon" /><span
                 >{{ activities[char.character_id].planets.used }}/{{
                   activities[char.character_id].planets.total
@@ -61,7 +61,7 @@
       </div>
       <div @click="$emit('add-character')" class="add-char-card">
         <div class="add-char-icon">+</div>
-        <span class="add-char-text">Добавить персонажа</span>
+        <span class="add-char-text">Add Character</span>
       </div>
     </div>
   </div>
