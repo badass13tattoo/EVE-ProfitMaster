@@ -40,6 +40,14 @@
         </div>
         <div class="current-time-line"></div>
         <div class="character-rows-container">
+          <!-- Бордерлайны для разделения персонажей -->
+          <div
+            v-for="(char, index) in characters"
+            :key="`border-${char.character_id}`"
+            class="character-border-line"
+            :style="getCharacterBorderStyle(char.character_id, index)"
+          ></div>
+
           <div
             v-for="char in characters"
             :key="char.character_id"
@@ -519,6 +527,56 @@ export default {
         height: "120px",
         minHeight: "120px",
         maxHeight: "120px",
+      };
+    },
+
+    getCharacterBorderStyle(characterId, index) {
+      // Вычисляем позицию бордерлайна на основе высоты предыдущих персонажей
+      let topPosition = 10; // padding-top контейнера
+
+      for (let i = 0; i < index; i++) {
+        const char = this.characters[i];
+        if (this.selectedCharacterId === char.character_id) {
+          topPosition += this.focusRowHeight;
+        } else if (
+          this.selectedCharacterId &&
+          this.selectedCharacterId !== char.character_id
+        ) {
+          // Свернутый персонаж - не добавляем высоту
+          continue;
+        } else {
+          topPosition += 120; // Стандартная высота персонажа
+        }
+
+        // Добавляем gap между персонажами (15px)
+        if (i < index - 1) {
+          topPosition += 15;
+        }
+      }
+
+      // Определяем высоту текущего персонажа
+      let characterHeight = 120; // Стандартная высота
+      if (this.selectedCharacterId === characterId) {
+        characterHeight = this.focusRowHeight;
+      } else if (
+        this.selectedCharacterId &&
+        this.selectedCharacterId !== characterId
+      ) {
+        characterHeight = 0; // Свернутый персонаж
+      }
+
+      // Позиционируем линию в конце текущего персонажа
+      topPosition += characterHeight;
+
+      return {
+        position: "absolute",
+        top: `${topPosition}px`,
+        left: "0",
+        right: "0",
+        height: "1px",
+        backgroundColor: "#3c414d",
+        zIndex: 10,
+        pointerEvents: "none",
       };
     },
     handleScroll(event) {
@@ -1379,13 +1437,13 @@ export default {
   flex-direction: column;
   gap: 15px;
   flex-grow: 1;
+  position: relative;
 }
 .character-row-group {
   height: 120px;
   min-height: 120px;
   max-height: 120px;
   box-sizing: border-box;
-  border-bottom: 1px solid #3c414d;
   transition: all 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
@@ -1404,6 +1462,22 @@ export default {
   padding-top: 0;
   padding-bottom: 0;
   border: none;
+}
+
+/* Бордерлайны для разделения персонажей */
+.character-border-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #3c414d;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.character-border-line:first-child {
+  display: none; /* Скрываем первую линию, так как она будет в самом верху */
 }
 .job-lanes-container {
   padding: 15px 0;

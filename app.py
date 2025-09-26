@@ -486,7 +486,7 @@ def create_app():
             headers = {'Authorization': f'Bearer {user.access_token}'}
             
             # Получаем список планет
-            planets_resp = requests.get(f'https://esi.evetech.net/latest/characters/{character_id}/planets/', headers=headers)
+            planets_resp = requests.get(f'https://esi.evetech.net/latest/characters/{character_id}/planets/', headers=headers, timeout=10)
             
             if planets_resp.status_code != 200:
                 return jsonify({'error': 'Не удалось получить планеты'}), 500
@@ -494,22 +494,30 @@ def create_app():
             planets_data = planets_resp.json()
             planets_with_details = []
             
+            # Кэш для систем, чтобы избежать повторных запросов
+            system_cache = {}
+            
             # Для каждой планеты получаем детальную информацию
             for planet in planets_data:
                 try:
-                    # Получаем детали планеты
-                    planet_detail_resp = requests.get(f'https://esi.evetech.net/latest/characters/{character_id}/planets/{planet["planet_id"]}/', headers=headers)
+                    # Получаем детали планеты с таймаутом
+                    planet_detail_resp = requests.get(f'https://esi.evetech.net/latest/characters/{character_id}/planets/{planet["planet_id"]}/', headers=headers, timeout=5)
                     
                     if planet_detail_resp.status_code == 200:
                         planet_detail = planet_detail_resp.json()
                         
-                        # Получаем информацию о планете из universe API
-                        planet_info_resp = requests.get(f'https://esi.evetech.net/latest/universe/planets/{planet["planet_id"]}/')
+                        # Получаем информацию о планете из universe API с таймаутом
+                        planet_info_resp = requests.get(f'https://esi.evetech.net/latest/universe/planets/{planet["planet_id"]}/', timeout=5)
                         planet_info = planet_info_resp.json() if planet_info_resp.status_code == 200 else {}
                         
-                        # Получаем информацию о системе
-                        system_info_resp = requests.get(f'https://esi.evetech.net/latest/universe/systems/{planet["solar_system_id"]}/')
-                        system_info = system_info_resp.json() if system_info_resp.status_code == 200 else {}
+                        # Получаем информацию о системе (с кэшированием)
+                        system_id = planet["solar_system_id"]
+                        if system_id not in system_cache:
+                            system_info_resp = requests.get(f'https://esi.evetech.net/latest/universe/systems/{system_id}/', timeout=5)
+                            system_info = system_info_resp.json() if system_info_resp.status_code == 200 else {}
+                            system_cache[system_id] = system_info
+                        else:
+                            system_info = system_cache[system_id]
                         
                         # Анализируем состояние планеты
                         extractors = planet_detail.get('extractors', [])
@@ -524,9 +532,12 @@ def create_app():
                                 active_extractors += 1
                                 # Проверяем, нужно ли обновить экстрактор
                                 if 'expiry_time' in extractor:
-                                    expiry_time = extractor['expiry_time']
-                                    if expiry_time and datetime.datetime.fromisoformat(expiry_time.replace('Z', '+00:00')) <= datetime.datetime.now(datetime.timezone.utc):
-                                        needs_attention = True
+                                    try:
+                                        expiry_time = extractor['expiry_time']
+                                        if expiry_time and datetime.datetime.fromisoformat(expiry_time.replace('Z', '+00:00')) <= datetime.datetime.now(datetime.timezone.utc):
+                                            needs_attention = True
+                                    except Exception as e:
+                                        print(f"Error parsing expiry time: {e}")
                         
                         # Проверяем, есть ли активные работы на планете
                         active_jobs = 0
@@ -639,8 +650,51 @@ def create_app():
                         
                         planets_with_details.append(planet_data)
                         
+                    else:
+                        # Если детальная информация недоступна, создаем базовую запись
+                        print(f"Planet detail API failed for planet {planet['planet_id']}, creating basic entry")
+                        basic_planet_data = {
+                            'planet_id': planet['planet_id'],
+                            'planet_name': f'Planet {planet["planet_id"]}',
+                            'solar_system_id': planet['solar_system_id'],
+                            'solar_system_name': f'System {planet["solar_system_id"]}',
+                            'planet_type': None,
+                            'needs_attention': False,
+                            'active_extractors': 0,
+                            'active_jobs': 0,
+                            'jobs': [],
+                            'extractors': [],
+                            'pins': [],
+                            'next_completion_hours': 0,
+                            'total_time_remaining_hours': 0,
+                            'earliest_expiry': None,
+                            'latest_expiry': None,
+                            'extractor_expiry_time': None
+                        }
+                        planets_with_details.append(basic_planet_data)
+                        
                 except Exception as e:
                     print(f"Error getting details for planet {planet['planet_id']}: {str(e)}")
+                    # Создаем базовую запись даже при ошибке
+                    basic_planet_data = {
+                        'planet_id': planet['planet_id'],
+                        'planet_name': f'Planet {planet["planet_id"]}',
+                        'solar_system_id': planet['solar_system_id'],
+                        'solar_system_name': f'System {planet["solar_system_id"]}',
+                        'planet_type': None,
+                        'needs_attention': False,
+                        'active_extractors': 0,
+                        'active_jobs': 0,
+                        'jobs': [],
+                        'extractors': [],
+                        'pins': [],
+                        'next_completion_hours': 0,
+                        'total_time_remaining_hours': 0,
+                        'earliest_expiry': None,
+                        'latest_expiry': None,
+                        'extractor_expiry_time': None
+                    }
+                    planets_with_details.append(basic_planet_data)
                     continue
             
             return jsonify(planets_with_details)

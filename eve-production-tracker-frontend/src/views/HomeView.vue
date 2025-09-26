@@ -334,7 +334,8 @@ export default {
         const planetPromises = this.characters.map(async (character) => {
           try {
             const planets = await dataLoader.load(
-              `${this.apiBaseUrl}/get_character_planets/${character.character_id}`
+              `${this.apiBaseUrl}/get_character_planets/${character.character_id}`,
+              { timeout: 30000 } // 30 секунд таймаут для планет
             );
             console.log(
               `Planets for character ${character.character_id}:`,
@@ -384,6 +385,19 @@ export default {
               `Error loading planets for character ${character.character_id}:`,
               error
             );
+
+            // Если это ошибка таймаута, создаем пустые данные
+            if (
+              error.name === "TimeoutError" ||
+              error.message.includes("timeout")
+            ) {
+              console.warn(
+                `Planet data timeout for character ${character.character_id}, using empty data`
+              );
+            }
+
+            this.planets[character.character_id] = [];
+            this.piJobs[character.character_id] = [];
           }
         });
 
@@ -507,6 +521,19 @@ export default {
               `Error loading planets for character ${character.character_id}:`,
               error
             );
+
+            // Если это ошибка таймаута, создаем пустые данные
+            if (
+              error.name === "TimeoutError" ||
+              error.message.includes("timeout")
+            ) {
+              console.warn(
+                `Planet data timeout for character ${character.character_id}, using empty data`
+              );
+            }
+
+            this.planets[character.character_id] = [];
+            this.piJobs[character.character_id] = [];
           }
         }
 
