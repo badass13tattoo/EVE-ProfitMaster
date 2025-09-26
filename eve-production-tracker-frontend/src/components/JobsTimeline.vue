@@ -129,28 +129,36 @@
                 </div>
               </div>
 
-              <!-- Планеты персонажа -->
+              <!-- Планеты персонажа как работы -->
               <div v-if="planets[char.character_id]" class="planets-lane">
                 <div
                   v-for="planet in planets[char.character_id]"
                   :key="`planet-${planet.planet_id}`"
-                  class="planet-item"
-                  :class="{ 'planet-needs-attention': planet.needs_attention }"
-                  :style="getPlanetStyle(planet)"
-                  @mouseover="showPlanetTooltip(planet, $event)"
-                  @mouseleave="hideTooltip"
+                  class="planet-job-lane"
                 >
                   <div
-                    class="planet-line"
-                    :style="{ backgroundColor: '#ECECBB' }"
+                    v-for="(job, index) in getPlanetJobs(planet)"
+                    :key="`planet-job-${planet.planet_id}-${index}`"
+                    class="planet-job-bar"
+                    :class="{
+                      'planet-needs-attention': planet.needs_attention,
+                    }"
+                    :style="getPlanetJobStyle(job, planet)"
+                    @mouseover="showPlanetTooltip(planet, $event)"
+                    @mouseleave="hideTooltip"
                   >
                     <div
-                      v-if="planet.needs_attention"
-                      class="attention-indicator"
+                      class="planet-job-fill"
+                      :style="{ backgroundColor: '#ECECBB' }"
                     >
-                      ✕
+                      <div
+                        v-if="planet.needs_attention"
+                        class="attention-indicator"
+                      >
+                        ✕
+                      </div>
+                      <div class="planet-name">{{ planet.planet_name }}</div>
                     </div>
-                    <div class="planet-name">{{ planet.planet_name }}</div>
                   </div>
                 </div>
               </div>
@@ -413,7 +421,10 @@ export default {
       return {
         top: `${this.tooltip.y}px`,
         left: `${this.tooltip.x}px`,
-        "--tooltip-bg": this.getJobColor(this.tooltip.job.activity_id),
+        "--tooltip-bg":
+          this.tooltip.type === "planet"
+            ? "#ECECBB"
+            : this.getJobColor(this.tooltip.job?.activity_id),
       };
     },
     focusRowHeight() {
@@ -493,13 +504,65 @@ export default {
     },
 
     // Методы для работы с планетами
-    getPlanetStyle(planet) {
-      // Планеты отображаются как постоянные линии на таймлайне
+    getPlanetJobs(planet) {
+      // Создаем "работы" для планеты на основе времени до завершения
+      const jobs = [];
+
+      if (planet.jobs && planet.jobs.length > 0) {
+        // Если есть реальные работы на планете, используем их
+        planet.jobs.forEach((job) => {
+          if (job.status === "active" && job.end_date) {
+            jobs.push({
+              ...job,
+              planet_id: planet.planet_id,
+              planet_name: planet.planet_name,
+              is_planet_job: true,
+            });
+          }
+        });
+      } else {
+        // Если нет активных работ, создаем виртуальную работу на основе времени до истечения экстракторов
+        const now = new Date();
+        const expiryTime = planet.extractor_expiry_time
+          ? new Date(planet.extractor_expiry_time)
+          : null;
+
+        if (expiryTime && expiryTime > now) {
+          jobs.push({
+            job_id: `planet-${planet.planet_id}`,
+            planet_id: planet.planet_id,
+            planet_name: planet.planet_name,
+            start_date: now.toISOString(),
+            end_date: expiryTime.toISOString(),
+            status: "active",
+            is_planet_job: true,
+            product_name: "Planetary Extraction",
+          });
+        } else {
+          // Если нет времени истечения, создаем постоянную работу
+          const futureTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 часа
+          jobs.push({
+            job_id: `planet-${planet.planet_id}`,
+            planet_id: planet.planet_id,
+            planet_name: planet.planet_name,
+            start_date: now.toISOString(),
+            end_date: futureTime.toISOString(),
+            status: "active",
+            is_planet_job: true,
+            product_name: "Planetary Extraction",
+          });
+        }
+      }
+
+      return jobs;
+    },
+
+    getPlanetJobStyle(job, planet) {
+      // Используем тот же метод что и для обычных работ, но с толщиной 10px
+      const style = this.getJobStyle(job);
       return {
-        position: "absolute",
-        left: "0px",
-        width: "100%",
-        height: "20px",
+        ...style,
+        height: "10px",
         zIndex: 1,
       };
     },
@@ -1322,40 +1385,48 @@ export default {
 /* Стили для планет */
 .planets-lane {
   position: relative;
-  height: 20px;
   margin-bottom: 4px;
   border-bottom: 1px solid #3c414d;
   padding-bottom: 2px;
 }
 
-.planet-item {
+.planet-job-lane {
   position: relative;
-  height: 20px;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  height: 10px;
+  margin-bottom: 2px;
 }
 
-.planet-item:hover {
-  transform: translateY(-1px);
-}
-
-.planet-line {
+.planet-job-bar {
   position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-radius: 1px;
+  height: 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.1s ease-in-out;
+  z-index: 1;
+}
+
+.planet-job-bar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(236, 236, 187, 0.3);
+}
+
+.planet-job-fill {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .planet-name {
   color: #ececbb;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
   white-space: nowrap;
@@ -1365,21 +1436,22 @@ export default {
 }
 
 .attention-indicator {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   background-color: #ff6b6b;
   color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 8px;
   font-weight: bold;
   animation: blink 1s infinite;
-  box-shadow: 0 0 8px rgba(255, 107, 107, 0.5);
+  box-shadow: 0 0 6px rgba(255, 107, 107, 0.5);
+  flex-shrink: 0;
 }
 
-.planet-needs-attention .planet-line {
+.planet-needs-attention .planet-job-fill {
   box-shadow: 0 0 4px rgba(255, 107, 107, 0.3);
 }
 
