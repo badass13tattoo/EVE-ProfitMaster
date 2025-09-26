@@ -530,12 +530,11 @@ export default {
           border: "none",
         };
       }
-      // Стандартный вид: устанавливаем высоту, чтобы она соответствовала высоте карточки + gap
+      // Стандартный вид: разрешаем динамический рост для показа всех работ
       return {
-        height: `${this.TOTAL_ROW_HEIGHT}px`,
-        minHeight: `${this.TOTAL_ROW_HEIGHT}px`,
-        maxHeight: `${this.TOTAL_ROW_HEIGHT}px`,
-        // ИЗМЕНЕНИЕ: Если используем gap, удаляем border-bottom
+        height: "auto", // ИЗМЕНЕНИЕ: Разрешаем динамический рост
+        minHeight: `${this.TOTAL_ROW_HEIGHT}px`, // Сохраняем минимальную высоту для выравнивания
+        // maxHeight удален для разрешения роста
         margin: "0", // Убеждаемся, что нет лишних маржинов
       };
     },
@@ -1448,6 +1447,7 @@ export default {
 }
 .character-row-group {
   /* Удалены жесткие размеры высоты для гибкого вертикального ритма */
+  min-height: 120px; /* Сохраняем минимальную высоту для выравнивания */
   box-sizing: border-box;
   transition: all 0.3s ease-in-out;
   display: flex;
@@ -1501,8 +1501,8 @@ export default {
 .job-lanes-container {
   /* ИЗМЕНЕНИЕ: Уменьшаем или удаляем padding, который "сдвигает" полосы */
   padding: 5px 0; /* Уменьшаем вертикальный padding */
-  max-height: 110px; /* Доступное пространство: 120px (TOTAL_ROW_HEIGHT) - 10px (padding) = 110px */
-  overflow-y: hidden; /* Оставляем для надежности */
+  /* max-height удален для разрешения динамического роста */
+  overflow-y: visible; /* Разрешаем показ всех работ */
   position: relative;
 }
 
