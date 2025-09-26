@@ -73,7 +73,7 @@
                 >
                   <div
                     class="job-bar-fill"
-                    :class="{ 'completed-job': isJobCompleted(job) }"
+                    :class="{ 'completed-job-focus': isJobCompleted(job) }"
                     :style="{
                       width: getJobStyle(job).width,
                       transform: getJobStyle(job).transform,
@@ -108,6 +108,25 @@
               </div>
             </div>
             <div v-else class="job-lanes-container">
+              <!-- Контейнер для индикаторов завершенных работ -->
+              <div class="completed-jobs-indicators">
+                <div
+                  v-for="job in getCompletedJobs(char.character_id)"
+                  :key="`completed-${job.job_id}`"
+                  class="completed-job-indicator"
+                  :style="getCompletedJobIndicatorStyle(job)"
+                  @mouseover="showTooltip(job, $event)"
+                  @mouseleave="hideTooltip"
+                >
+                  <svg class="checkmark-icon-indicator" viewBox="0 0 24 24">
+                    <path
+                      d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"
+                      fill="white"
+                    />
+                  </svg>
+                </div>
+              </div>
+
               <template v-if="processedJobs[char.character_id]">
                 <div
                   v-for="(lane, index) in processedJobs[char.character_id]"
@@ -120,7 +139,6 @@
                     class="job-bar"
                     :class="{
                       'has-overlap': job.hasOverlap,
-                      'completed-job-bar': isJobCompleted(job),
                     }"
                     :style="getJobStyle(job)"
                     @mouseover="showTooltip(job, $event)"
@@ -128,20 +146,8 @@
                   >
                     <div
                       class="job-bar-fill"
-                      :class="{ 'completed-job': isJobCompleted(job) }"
                       :style="{ backgroundColor: getJobColor(job.activity_id) }"
-                    >
-                      <svg
-                        v-if="isJobCompleted(job)"
-                        class="checkmark-icon"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"
-                          fill="white"
-                        />
-                      </svg>
-                    </div>
+                    ></div>
                   </div>
                 </div>
               </template>
@@ -357,6 +363,11 @@ export default {
           scrollTop: event.target.scrollTop,
         };
       }
+
+      // Обновляем позиции индикаторов при горизонтальной прокрутке
+      if (event.target.classList.contains("job-lanes-container")) {
+        this.$forceUpdate();
+      }
     },
     handleExternalScroll(scrollData) {
       if (scrollData.source === "timeline") return;
@@ -505,24 +516,42 @@ export default {
 
       return lanes;
     },
+    // Получить завершенные работы для персонажа
+    getCompletedJobs(characterId) {
+      if (!this.jobs[characterId]) return [];
+      return this.jobs[characterId].filter((job) => this.isJobCompleted(job));
+    },
+
+    // Стиль для индикатора завершенной работы
+    getCompletedJobIndicatorStyle(job) {
+      // Позиция end_date относительно текущего времени (может быть отрицательной)
+      const endOffsetMs = new Date(job.end_date).getTime() - this.now.getTime();
+      const left = (endOffsetMs / 3600e3) * this.pixelsPerHour;
+
+      // Адаптивный размер квадратика в зависимости от масштаба
+      const baseSize = Math.max(12, Math.min(24, this.pixelsPerHour * 0.8));
+      const size = `${baseSize}px`;
+
+      // Убеждаемся, что индикатор не выходит за границы контейнера
+      const containerWidth = this.containerWidth || 1000;
+      const maxLeft = containerWidth - parseInt(size);
+      const clampedLeft = Math.max(0, Math.min(left, maxLeft));
+
+      return {
+        left: `${clampedLeft}px`,
+        width: size,
+        height: size,
+        backgroundColor: this.getJobColor(job.activity_id),
+        // Добавляем видимость только если работа в видимой области
+        opacity: left >= -parseInt(size) && left <= containerWidth ? 1 : 0,
+      };
+    },
+
     getJobStyle(job) {
-      // Если работа завершена, показываем квадратик в позиции завершения
+      // Для завершенных работ не показываем в обычных линиях
       if (this.isJobCompleted(job)) {
-        // Позиция end_date относительно текущего времени (может быть отрицательной)
-        const endOffsetMs =
-          new Date(job.end_date).getTime() - this.now.getTime();
-        const left = (endOffsetMs / 3600e3) * this.pixelsPerHour;
-
-        // Адаптивный размер квадратика в зависимости от масштаба
-        const baseSize = Math.max(8, Math.min(20, this.pixelsPerHour * 0.5));
-        const size = `${baseSize}px`;
-
         return {
-          transform: `translateX(${left}px)`,
-          width: size,
-          height: size,
-          borderRadius: "3px",
-          zIndex: 10, // Убеждаемся что квадратик поверх линий
+          display: "none",
         };
       }
 
@@ -613,12 +642,24 @@ export default {
       this.updateContainerWidth();
       window.addEventListener("resize", this.updateContainerWidth);
       this.$el.addEventListener("scroll", this.handleScroll, true);
+
+      // Добавляем обработчики прокрутки для контейнеров работ
+      const jobContainers = this.$el.querySelectorAll(".job-lanes-container");
+      jobContainers.forEach((container) => {
+        container.addEventListener("scroll", this.handleScroll, true);
+      });
     });
   },
   beforeUnmount() {
     clearInterval(this.interval);
     window.removeEventListener("resize", this.updateContainerWidth);
     this.$el.removeEventListener("scroll", this.handleScroll, true);
+
+    // Удаляем обработчики прокрутки для контейнеров работ
+    const jobContainers = this.$el.querySelectorAll(".job-lanes-container");
+    jobContainers.forEach((container) => {
+      container.removeEventListener("scroll", this.handleScroll, true);
+    });
   },
 };
 </script>
@@ -756,6 +797,44 @@ export default {
   position: relative;
 }
 
+.completed-jobs-indicators {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.completed-job-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 2s infinite;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.completed-job-indicator:hover {
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.checkmark-icon-indicator {
+  width: 60%;
+  height: 60%;
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5));
+}
+
 .job-lanes-container::before {
   content: "";
   position: absolute;
@@ -853,10 +932,14 @@ export default {
   border-radius: 4px;
 }
 
-.job-bar-focus-view .completed-job {
+.job-bar-focus-view .completed-job-focus {
   width: 30px !important;
   height: 30px !important;
   border-radius: 6px !important;
+  animation: pulse 2s infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .job-bar-focus-view .job-bar-fill {
   position: absolute;
@@ -892,22 +975,6 @@ export default {
   transition: all 0.1s ease-in-out;
 }
 
-.job-bar.completed-job-bar {
-  height: 10px !important;
-  width: 10px !important;
-  animation: pulse 2s infinite;
-  z-index: 10;
-  position: relative;
-}
-
-.job-bar .completed-job {
-  width: 10px !important;
-  height: 10px !important;
-  border-radius: 2px !important;
-  animation: pulse 2s infinite;
-  z-index: 10;
-  position: relative;
-}
 .job-bar.has-overlap {
   box-shadow: 0 0 8px 1px rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -919,11 +986,6 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.job-bar-fill.completed-job {
-  animation: pulse 2s infinite;
-  border-radius: 4px;
 }
 
 .checkmark-icon {
