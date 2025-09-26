@@ -820,12 +820,14 @@ export default {
 .job-bar.completed-job-bar {
   height: 20px !important;
   width: 20px !important;
+  animation: pulse 2s infinite;
 }
 
 .job-bar .completed-job {
   width: 20px !important;
   height: 20px !important;
   border-radius: 4px !important;
+  animation: pulse 2s infinite;
 }
 .job-bar.has-overlap {
   box-shadow: 0 0 8px 1px rgba(0, 0, 0, 0.7);
