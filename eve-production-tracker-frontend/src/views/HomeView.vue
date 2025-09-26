@@ -52,10 +52,20 @@
     <div v-if="!isLoggedIn && !loading" class="login-overlay">
       <div class="login-box">
         <h1>EVE Profit Master</h1>
-        <p>Для начала работы, нажмите кнопку ниже.</p>
-        <button @click="loadAppData" class="mock-login-button">
-          Начать с тестовыми данными
-        </button>
+        <p>Войдите через EVE Online SSO для работы с реальными данными.</p>
+        <div class="login-buttons">
+          <button @click="loginWithEVE" class="eve-login-button">
+            <img
+              src="/eve-sso-login-white-large.png"
+              alt="EVE SSO Login"
+              class="eve-logo"
+            />
+            Войти через EVE Online
+          </button>
+          <button @click="loadMockData" class="mock-login-button">
+            Демо режим (тестовые данные)
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -83,6 +93,8 @@ export default {
     loading: false,
     selectedCharacterId: null,
     currentSection: "characters", // Текущий активный раздел
+    apiBaseUrl:
+      process.env.NODE_ENV === "development" ? "http://localhost:5000" : "",
     navigationItems: [
       {
         key: "characters",
@@ -118,28 +130,128 @@ export default {
       this.selectedCharacterId =
         this.selectedCharacterId === charId ? null : charId;
     },
-    _getMockData() {},
-    loadAppData() {
+
+    // Авторизация через EVE Online SSO
+    loginWithEVE() {
+      window.location.href = `${this.apiBaseUrl}/login`;
+    },
+
+    // Загрузка тестовых данных для демо режима
+    loadMockData() {
       this.loading = true;
-      const mockData = this._getMockData();
       this.characters = mockCharacters;
       this.activities = mockActivities;
       this.jobs = mockJobs;
       this.isLoggedIn = true;
       this.loading = false;
     },
+
+    // Загрузка реальных данных из API
+    async loadRealData() {
+      this.loading = true;
+      try {
+        // Загружаем персонажей
+        const charactersResponse = await fetch(
+          `${this.apiBaseUrl}/get_characters`
+        );
+        if (charactersResponse.ok) {
+          this.characters = await charactersResponse.json();
+        }
+
+        // Загружаем активности для каждого персонажа
+        this.activities = {};
+        for (const character of this.characters) {
+          const detailsResponse = await fetch(
+            `${this.apiBaseUrl}/get_character_details/${character.character_id}`
+          );
+          if (detailsResponse.ok) {
+            this.activities[character.character_id] =
+              await detailsResponse.json();
+          }
+        }
+
+        // Загружаем работы
+        const jobsResponse = await fetch(`${this.apiBaseUrl}/get_jobs`);
+        if (jobsResponse.ok) {
+          this.jobs = await jobsResponse.json();
+        }
+
+        this.isLoggedIn = true;
+      } catch (error) {
+        console.error("Ошибка загрузки данных:", error);
+        alert("Ошибка загрузки данных. Проверьте подключение к серверу.");
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // Добавление нового персонажа
     addMockCharacter() {
-      alert("Добавление 'болванки' в разработке.");
+      this.loginWithEVE();
     },
-    removeMockCharacter(characterId) {
-      if (!confirm("Уверены?")) return;
-      this.characters = this.characters.filter(
-        (c) => c.character_id !== characterId
+
+    // Удаление персонажа
+    async removeMockCharacter(characterId) {
+      if (!confirm("Уверены что хотите удалить персонажа?")) return;
+
+      try {
+        const response = await fetch(`${this.apiBaseUrl}/remove_character`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ character_id: characterId }),
+        });
+
+        if (response.ok) {
+          this.characters = this.characters.filter(
+            (c) => c.character_id !== characterId
+          );
+          delete this.jobs[characterId];
+          delete this.activities[characterId];
+          if (this.characters.length === 0) {
+            this.isLoggedIn = false;
+          }
+        } else {
+          alert("Ошибка при удалении персонажа");
+        }
+      } catch (error) {
+        console.error("Ошибка удаления персонажа:", error);
+        alert("Ошибка удаления персонажа");
+      }
+    },
+  },
+
+  // Проверяем авторизацию при загрузке компонента
+  async mounted() {
+    // Проверяем URL параметры на успешную авторизацию
+    const urlParams = new URLSearchParams(window.location.search);
+    const authSuccess = urlParams.get("auth");
+
+    if (authSuccess === "success") {
+      // Убираем параметр из URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Принудительно загружаем данные после авторизации
+      await this.loadRealData();
+      return;
+    }
+
+    // Проверяем, есть ли персонажи в системе (значит пользователь авторизован)
+    try {
+      const charactersResponse = await fetch(
+        `${this.apiBaseUrl}/get_characters`
       );
-      delete this.jobs[characterId];
-      delete this.activities[characterId];
-      if (this.characters.length === 0) this.isLoggedIn = false;
-    },
+      if (charactersResponse.ok) {
+        const characters = await charactersResponse.json();
+        if (characters.length > 0) {
+          // Пользователь авторизован, загружаем реальные данные
+          await this.loadRealData();
+        }
+      }
+    } catch (error) {
+      // Игнорируем ошибки при первом запуске - пользователь не авторизован
+      console.log("Пользователь не авторизован или сервер недоступен");
+    }
   },
 };
 </script>
@@ -308,15 +420,58 @@ html {
   padding: 40px;
   background-color: #2c2c2c;
   border-radius: 10px;
+  max-width: 450px;
 }
+
+.login-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.eve-login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1a1a1a;
+  color: white;
+  border: 2px solid #e67e00;
+  padding: 15px 30px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  gap: 15px;
+}
+
+.eve-login-button:hover {
+  background-color: #e67e00;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(230, 126, 0, 0.3);
+}
+
+.eve-logo {
+  height: 24px;
+  width: auto;
+}
+
 .mock-login-button {
   background-color: #4e9aef;
   color: white;
-  border: none;
+  border: 2px solid transparent;
   padding: 15px 30px;
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 18px;
-  margin-top: 20px;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.mock-login-button:hover {
+  background-color: #3a7bc8;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(78, 154, 239, 0.3);
 }
 </style>

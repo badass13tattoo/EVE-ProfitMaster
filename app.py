@@ -56,7 +56,12 @@ def create_app():
     @app.route('/login')
     def login():
         CLIENT_ID = os.environ.get('EVE_CLIENT_ID')
-        CALLBACK_URL = 'https://eve-profitmaster.onrender.com/callback'
+        # Определяем callback URL в зависимости от режима
+        if app.config.get('FLASK_ENV') == 'development':
+            CALLBACK_URL = 'http://localhost:5000/callback'
+        else:
+            CALLBACK_URL = 'https://eve-profitmaster.onrender.com/callback'
+        
         scopes = "publicData esi-skills.read_skills.v1 esi-wallet.read_character_wallet.v1 esi-assets.read_assets.v1 esi-planets.manage_planets.v1 esi-industry.read_character_jobs.v1 esi-characters.read_blueprints.v1"
         params = {'response_type': 'code', 'redirect_uri': CALLBACK_URL, 'client_id': CLIENT_ID, 'scope': scopes, 'state': secrets.token_urlsafe(16)}
         session['oauth_state'] = params['state']
@@ -91,10 +96,17 @@ def create_app():
         if response.status_code != 200: return "Ошибка при верификации персонажа.", 401
         char_data = response.json()
         user = User.query.filter_by(character_id=char_data['CharacterID']).first()
-        if user: user.access_token, user.refresh_token = access_token, refresh_token
-        else: db.session.add(User(character_id=char_data['CharacterID'], character_name=char_data['CharacterName'], access_token=access_token, refresh_token=refresh_token))
+        if user: 
+            user.access_token, user.refresh_token = access_token, refresh_token
+        else: 
+            db.session.add(User(character_id=char_data['CharacterID'], character_name=char_data['CharacterName'], access_token=access_token, refresh_token=refresh_token))
         db.session.commit()
-        return redirect('/popup_close')
+        
+        # Перенаправляем на фронтенд в зависимости от режима
+        if app.config.get('FLASK_ENV') == 'development':
+            return redirect('http://localhost:8080/?auth=success')
+        else:
+            return redirect('/?auth=success')
 
     @app.route('/popup_close')
     def popup_close(): return render_template('popup_close.html')
