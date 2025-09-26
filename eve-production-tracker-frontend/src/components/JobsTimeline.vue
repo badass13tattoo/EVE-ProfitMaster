@@ -339,7 +339,7 @@ export default {
     // Константы для вертикального ритма
     CARD_HEIGHT: 120,
     GAP_HEIGHT: 15,
-    TOTAL_ROW_HEIGHT: 120, // Только высота карточки, gap управляется CSS
+    TOTAL_ROW_HEIGHT: 135, // Только высота карточки, gap управляется CSS
     // Оптимизация обновлений
     _lastUpdateTime: 0,
     _updateThrottle: 5000, // Обновляем максимум раз в 5 секунд
@@ -517,6 +517,7 @@ export default {
         return {
           height: `${this.focusRowHeight}px`,
           minHeight: `${this.focusRowHeight}px`,
+          maxHeight: `${this.focusRowHeight}px`,
         };
       }
       if (
@@ -527,7 +528,6 @@ export default {
           height: "0px",
           minHeight: "0px",
           padding: "0",
-          border: "none",
         };
       }
       // Стандартный вид: разрешаем динамический рост для показа всех работ
@@ -554,8 +554,12 @@ export default {
           // Свернутый персонаж - не добавляем высоту
           continue;
         } else {
-          // Используем константу для стандартной высоты персонажа
-          topPosition += this.TOTAL_ROW_HEIGHT;
+          return {
+            height: "120px",
+            minHeight: "120px",
+            maxHeight: "120px",
+            margin: "0",
+          };
         }
       }
 
@@ -1453,7 +1457,7 @@ export default {
   display: flex;
   flex-direction: column;
   justify-content: flex-start; /* ИЗМЕНЕНИЕ: Начинаем контент сверху, а не по центру */
-  padding-top: 10px; /* Добавляем небольшой отступ сверху для выравнивания */
+  padding-top: 0px; /* Добавляем небольшой отступ сверху для выравнивания */
   /* КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Обрезаем содержимое, которое выходит за границы жесткой высоты */
   overflow: hidden;
 }
