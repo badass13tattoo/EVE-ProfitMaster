@@ -339,7 +339,7 @@ export default {
     // Константы для вертикального ритма
     CARD_HEIGHT: 120,
     GAP_HEIGHT: 15,
-    TOTAL_ROW_HEIGHT: 135, // CARD_HEIGHT + GAP_HEIGHT
+    TOTAL_ROW_HEIGHT: 120, // Только высота карточки, gap управляется CSS
     // Оптимизация обновлений
     _lastUpdateTime: 0,
     _updateThrottle: 5000, // Обновляем максимум раз в 5 секунд
@@ -535,8 +535,7 @@ export default {
         height: `${this.TOTAL_ROW_HEIGHT}px`,
         minHeight: `${this.TOTAL_ROW_HEIGHT}px`,
         maxHeight: `${this.TOTAL_ROW_HEIGHT}px`,
-        // Добавляем разделитель, который был удален из CSS
-        borderBottom: "1px solid #3c414d",
+        // ИЗМЕНЕНИЕ: Если используем gap, удаляем border-bottom
         margin: "0", // Убеждаемся, что нет лишних маржинов
       };
     },
@@ -1443,6 +1442,7 @@ export default {
   padding-top: 10px;
   display: flex;
   flex-direction: column;
+  gap: 15px; /* Оставляем gap для разделения строк */
   flex-grow: 1;
   position: relative;
 }
@@ -1501,7 +1501,7 @@ export default {
 .job-lanes-container {
   /* ИЗМЕНЕНИЕ: Уменьшаем или удаляем padding, который "сдвигает" полосы */
   padding: 5px 0; /* Уменьшаем вертикальный padding */
-  max-height: 125px; /* Доступное пространство: 135px (TOTAL_ROW_HEIGHT) - 10px (padding) = 125px */
+  max-height: 110px; /* Доступное пространство: 120px (TOTAL_ROW_HEIGHT) - 10px (padding) = 110px */
   overflow-y: hidden; /* Оставляем для надежности */
   position: relative;
 }
