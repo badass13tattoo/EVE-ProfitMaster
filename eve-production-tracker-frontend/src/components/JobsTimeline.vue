@@ -129,6 +129,32 @@
                 </div>
               </div>
 
+              <!-- Планеты персонажа -->
+              <div v-if="planets[char.character_id]" class="planets-lane">
+                <div
+                  v-for="planet in planets[char.character_id]"
+                  :key="`planet-${planet.planet_id}`"
+                  class="planet-item"
+                  :class="{ 'planet-needs-attention': planet.needs_attention }"
+                  :style="getPlanetStyle(planet)"
+                  @mouseover="showPlanetTooltip(planet, $event)"
+                  @mouseleave="hideTooltip"
+                >
+                  <div
+                    class="planet-line"
+                    :style="{ backgroundColor: '#ECECBB' }"
+                  >
+                    <div
+                      v-if="planet.needs_attention"
+                      class="attention-indicator"
+                    >
+                      ✕
+                    </div>
+                    <div class="planet-name">{{ planet.planet_name }}</div>
+                  </div>
+                </div>
+              </div>
+
               <template v-if="processedJobs[char.character_id]">
                 <div
                   v-for="(lane, index) in processedJobs[char.character_id]"
@@ -160,55 +186,64 @@
       </div>
     </div>
     <div v-if="tooltip.visible" class="tooltip" :style="tooltipStyle">
-      <strong>{{ tooltip.job.product_name }}</strong
-      ><br />
-      <small>Location: {{ tooltip.job.location_name }}</small
-      ><br /><br />
-      Type: {{ getJobType(tooltip.job.activity_id) }}<br />
+      <!-- Тултип для планет -->
+      <div
+        v-if="tooltip.type === 'planet'"
+        v-html="getPlanetTooltipContent(tooltip.planet)"
+      ></div>
 
-      <!-- Специальная информация для PI работ -->
-      <span v-if="tooltip.job.activity_id === 100">
-        <div v-if="tooltip.job.planet_name">
-          <strong>Planet:</strong> {{ tooltip.job.planet_name }}<br />
-        </div>
-        <div v-if="tooltip.job.pi_type">
-          <strong>PI Type:</strong> {{ tooltip.job.pi_type }}<br />
-        </div>
-        <div v-if="tooltip.job.cycle_time">
-          <strong>Cycle Time:</strong>
-          {{ Math.round(tooltip.job.cycle_time / 60) }}m<br />
-        </div>
-        <span
-          v-if="tooltip.job.status === 'needs_attention'"
-          style="color: #e06c75"
-        >
-          ⚠️ Needs attention
+      <!-- Тултип для работ -->
+      <div v-else>
+        <strong>{{ tooltip.job.product_name }}</strong
+        ><br />
+        <small>Location: {{ tooltip.job.location_name }}</small
+        ><br /><br />
+        Type: {{ getJobType(tooltip.job.activity_id) }}<br />
+
+        <!-- Специальная информация для PI работ -->
+        <span v-if="tooltip.job.activity_id === 100">
+          <div v-if="tooltip.job.planet_name">
+            <strong>Planet:</strong> {{ tooltip.job.planet_name }}<br />
+          </div>
+          <div v-if="tooltip.job.pi_type">
+            <strong>PI Type:</strong> {{ tooltip.job.pi_type }}<br />
+          </div>
+          <div v-if="tooltip.job.cycle_time">
+            <strong>Cycle Time:</strong>
+            {{ Math.round(tooltip.job.cycle_time / 60) }}m<br />
+          </div>
+          <span
+            v-if="tooltip.job.status === 'needs_attention'"
+            style="color: #e06c75"
+          >
+            ⚠️ Needs attention
+          </span>
+          <span v-else-if="tooltip.job.status === 'ready'">
+            ✅ Ready for collection
+          </span>
+          <span v-else>
+            completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
+          </span>
         </span>
-        <span v-else-if="tooltip.job.status === 'ready'">
-          ✅ Ready for collection
+
+        <!-- Обычные планетные работы -->
+        <span v-else-if="tooltip.job.is_planet_job">
+          <span
+            v-if="tooltip.job.status === 'needs_attention'"
+            style="color: #e06c75"
+          >
+            ⚠️ Needs attention
+          </span>
+          <span v-else>
+            completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
+          </span>
         </span>
+
+        <!-- Обычные работы -->
         <span v-else>
           completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
         </span>
-      </span>
-
-      <!-- Обычные планетные работы -->
-      <span v-else-if="tooltip.job.is_planet_job">
-        <span
-          v-if="tooltip.job.status === 'needs_attention'"
-          style="color: #e06c75"
-        >
-          ⚠️ Needs attention
-        </span>
-        <span v-else>
-          completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
-        </span>
-      </span>
-
-      <!-- Обычные работы -->
-      <span v-else>
-        completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
-      </span>
+      </div>
     </div>
   </div>
 </template>
@@ -455,6 +490,79 @@ export default {
           }
         });
       });
+    },
+
+    // Методы для работы с планетами
+    getPlanetStyle(planet) {
+      // Планеты отображаются как постоянные линии на таймлайне
+      return {
+        position: "absolute",
+        left: "0px",
+        width: "100%",
+        height: "20px",
+        zIndex: 1,
+      };
+    },
+
+    showPlanetTooltip(planet, event) {
+      const rect = event.target.getBoundingClientRect();
+      this.tooltip = {
+        visible: true,
+        planet: planet,
+        x: rect.left + rect.width / 2,
+        y: rect.top - 10,
+        type: "planet",
+      };
+    },
+
+    getPlanetTooltipContent(planet) {
+      let content = `<strong>${planet.planet_name}</strong><br>`;
+      content += `Система: ${planet.solar_system_name || "Unknown"}<br>`;
+      content += `Тип планеты: ${this.getPlanetTypeName(
+        planet.planet_type
+      )}<br>`;
+      content += `Активных экстракторов: ${planet.active_extractors || 0}<br>`;
+
+      if (planet.needs_attention) {
+        content += `<span style="color: #ff6b6b;">⚠️ Требует внимания!</span><br>`;
+      }
+
+      // Информация о добываемых ресурсах
+      if (planet.jobs && planet.jobs.length > 0) {
+        content += `<br><strong>Активные работы:</strong><br>`;
+        planet.jobs.forEach((job) => {
+          if (job.status === "active") {
+            const timeRemaining = this.getTimeRemaining(job.end_date);
+            content += `• ${job.product_name} - ${timeRemaining}<br>`;
+          }
+        });
+      }
+
+      return content;
+    },
+
+    getPlanetTypeName(planetType) {
+      const types = {
+        1: "Temperate",
+        2: "Barren",
+        3: "Oceanic",
+        4: "Ice",
+        5: "Gas",
+        6: "Lava",
+        7: "Storm",
+        8: "Plasma",
+        9: "Shattered",
+        10: "Temperate (High Sec)",
+        11: "Barren (High Sec)",
+        12: "Oceanic (High Sec)",
+        13: "Ice (High Sec)",
+        14: "Gas (High Sec)",
+        15: "Lava (High Sec)",
+        16: "Storm (High Sec)",
+        17: "Plasma (High Sec)",
+        18: "Shattered (High Sec)",
+      };
+      return types[planetType] || "Unknown";
     },
 
     // Поиск работы по ID
@@ -1209,6 +1317,84 @@ export default {
   padding-top: 50px;
   font-size: 18px;
   color: #888;
+}
+
+/* Стили для планет */
+.planets-lane {
+  position: relative;
+  height: 20px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #3c414d;
+  padding-bottom: 2px;
+}
+
+.planet-item {
+  position: relative;
+  height: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.planet-item:hover {
+  transform: translateY(-1px);
+}
+
+.planet-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+}
+
+.planet-name {
+  color: #ececbb;
+  font-size: 12px;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80%;
+}
+
+.attention-indicator {
+  width: 16px;
+  height: 16px;
+  background-color: #ff6b6b;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  animation: blink 1s infinite;
+  box-shadow: 0 0 8px rgba(255, 107, 107, 0.5);
+}
+
+.planet-needs-attention .planet-line {
+  box-shadow: 0 0 4px rgba(255, 107, 107, 0.3);
+}
+
+/* Анимация мигания для индикатора внимания */
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  25%,
+  75% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
 }
 
 /* Анимация пульсации для завершенных работ */
