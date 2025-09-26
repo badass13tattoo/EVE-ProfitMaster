@@ -186,6 +186,20 @@ export default {
           if (detailsResponse.ok) {
             this.activities[character.character_id] =
               await detailsResponse.json();
+          } else if (detailsResponse.status === 401) {
+            const errorData = await detailsResponse.json();
+            if (errorData.requires_reauth) {
+              console.warn(
+                `Character ${character.character_name} requires re-authentication`
+              );
+              // Remove character from the list and show notification
+              this.characters = this.characters.filter(
+                (c) => c.character_id !== character.character_id
+              );
+              alert(
+                `Персонаж ${character.character_name} требует повторной авторизации. Пожалуйста, войдите в систему заново.`
+              );
+            }
           }
         }
 

@@ -160,11 +160,24 @@ def create_app():
     def get_jobs():
         users = User.query.all()
         jobs_by_character = {}
+        users_to_remove = []
+        
         for user in users:
-            if not refresh_access_token(user): continue
+            if not refresh_access_token(user): 
+                print(f"Token refresh failed for {user.character_name}, marking for removal")
+                users_to_remove.append(user)
+                continue
             headers = {'Authorization': f'Bearer {user.access_token}'}
             resp = requests.get(f'https://esi.evetech.net/latest/characters/{user.character_id}/industry/jobs/', headers=headers)
             jobs_by_character[str(user.character_id)] = resp.json() if resp.status_code == 200 else []
+        
+        # Remove users with invalid tokens
+        for user in users_to_remove:
+            db.session.delete(user)
+        if users_to_remove:
+            db.session.commit()
+            print(f"Removed {len(users_to_remove)} users with invalid tokens")
+            
         return jsonify(jobs_by_character)
 
     @app.route('/get_characters')
@@ -182,8 +195,11 @@ def create_app():
             
             print(f"Found user: {user.character_name}")
             if not refresh_access_token(user): 
-                print("Failed to refresh access token")
-                return jsonify({'error': 'Не удалось обновить токен'}), 500
+                print("Failed to refresh access token - removing character from database")
+                # Remove the character with invalid token from database
+                db.session.delete(user)
+                db.session.commit()
+                return jsonify({'error': 'Токен доступа истек. Пожалуйста, войдите в систему заново.', 'requires_reauth': True}), 401
             
             headers = {'Authorization': f'Bearer {user.access_token}'}
             base_url = 'https://esi.evetech.net/latest/characters'
