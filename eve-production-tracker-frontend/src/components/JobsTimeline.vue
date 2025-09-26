@@ -518,6 +518,7 @@ export default {
           height: `${this.focusRowHeight}px`,
           minHeight: `${this.focusRowHeight}px`,
           maxHeight: `${this.focusRowHeight}px`,
+          borderBottom: BORDER_STYLE,
         };
       }
       if (
@@ -528,6 +529,7 @@ export default {
           height: "0px",
           minHeight: "0px",
           padding: "0",
+          borderBottom: BORDER_STYLE,
         };
       }
       // Стандартный вид: разрешаем динамический рост для показа всех работ
@@ -559,6 +561,7 @@ export default {
             minHeight: "120px",
             maxHeight: "120px",
             margin: "0",
+            borderBottom: BORDER_STYLE,
           };
         }
       }
@@ -1445,7 +1448,6 @@ export default {
   padding-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 15px; /* Оставляем gap для разделения строк */
   flex-grow: 1;
   position: relative;
 }
