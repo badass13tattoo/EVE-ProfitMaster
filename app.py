@@ -45,14 +45,10 @@ def create_app():
     # Настройка CORS для разрешения запросов с фронтенда
     cors.init_app(app, resources={
         r"/*": {
-            "origins": [
-                "https://eve-profitmaster-1.onrender.com",
-                "http://localhost:8080",
-                "http://localhost:3000"
-            ],
+            "origins": "*",  # Разрешаем все origins для простоты
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
+            "supports_credentials": False  # Отключаем credentials для wildcard origins
         }
     })
 
@@ -162,23 +158,7 @@ def create_app():
     @app.route('/')
     def home(): return "Бэкенд EVE Profit Master работает!"
     
-    # Обработка CORS preflight запросов
-    @app.before_request
-    def handle_preflight():
-        if request.method == "OPTIONS":
-            response = make_response()
-            response.headers.add("Access-Control-Allow-Origin", "*")
-            response.headers.add('Access-Control-Allow-Headers', "*")
-            response.headers.add('Access-Control-Allow-Methods', "*")
-            return response
-    
-    # Добавляем CORS заголовки ко всем ответам
-    @app.after_request
-    def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        return response
+    # Flask-CORS уже обрабатывает CORS, дополнительные обработчики не нужны
     
     @app.route('/health')
     def health():
