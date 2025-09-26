@@ -108,8 +108,8 @@ export default {
     lastActivityTime: Date.now(),
     isWindowActive: true,
     updateTimeout: null,
-    apiBaseUrl: "http://localhost:5000", // Используем локальный сервер
-    fallbackApiUrl: "https://eve-profitmaster.onrender.com", // Fallback URL
+    apiBaseUrl: "https://eve-profitmaster.onrender.com", // Основной URL на Render
+    fallbackApiUrl: "http://localhost:5000", // Fallback для локальной разработки
     _cachedApiUrl: null, // Кэшированный рабочий API URL
     // Кэш для computed свойств
     _allJobsCache: null,
@@ -209,7 +209,7 @@ export default {
         .catch((error) => {
           console.error("Ошибка подключения к backend:", error);
           alert(
-            "Ошибка: Backend сервер недоступен!\n\nУбедитесь что:\n1. Flask сервер запущен (python app.py)\n2. Сервер работает на http://localhost:5000\n3. .env файл настроен правильно"
+            "Ошибка: Сервер недоступен!\n\nВозможные причины:\n1. Проблемы с интернет-соединением\n2. Сервер временно недоступен\n3. Проблемы с Render.com\n\nПопробуйте:\n1. Обновить страницу\n2. Проверить интернет-соединение\n3. Использовать демо режим для тестирования"
           );
         });
     },
@@ -392,7 +392,9 @@ export default {
         this.saveToCache();
       } catch (error) {
         console.error("Ошибка загрузки данных:", error);
-        alert("Ошибка загрузки данных. Проверьте подключение к серверу.");
+        alert(
+          "Ошибка загрузки данных. Проверьте интернет-соединение или попробуйте демо режим."
+        );
       } finally {
         this.loading = false;
       }
@@ -855,7 +857,9 @@ export default {
           }
         } catch (error) {
           console.error("Ошибка очистки базы данных:", error);
-          alert("Ошибка подключения к серверу.");
+          alert(
+            "Ошибка подключения к серверу. Проверьте интернет-соединение или попробуйте демо режим."
+          );
         }
       }
     },
@@ -915,6 +919,7 @@ export default {
     } catch (error) {
       // Игнорируем ошибки при первом запуске - пользователь не авторизован
       console.log("Пользователь не авторизован или сервер недоступен");
+      console.log("Используйте демо режим для тестирования интерфейса");
     }
   },
 
