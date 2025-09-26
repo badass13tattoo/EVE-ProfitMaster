@@ -60,7 +60,6 @@
               alt="EVE SSO Login"
               class="eve-logo"
             />
-            Войти через EVE Online
           </button>
           <button @click="loadMockData" class="mock-login-button">
             Демо режим (тестовые данные)
@@ -133,7 +132,23 @@ export default {
 
     // Авторизация через EVE Online SSO
     loginWithEVE() {
-      window.location.href = `${this.apiBaseUrl}/login`;
+      console.log('Попытка авторизации через EVE SSO...');
+      console.log('API Base URL:', this.apiBaseUrl);
+      
+      // Проверяем доступность backend перед перенаправлением
+      fetch(`${this.apiBaseUrl}/`)
+        .then(response => {
+          if (response.ok) {
+            console.log('Backend доступен, перенаправляем на авторизацию');
+            window.location.href = `${this.apiBaseUrl}/login`;
+          } else {
+            throw new Error('Backend недоступен');
+          }
+        })
+        .catch(error => {
+          console.error('Ошибка подключения к backend:', error);
+          alert('Ошибка: Backend сервер недоступен!\n\nУбедитесь что:\n1. Flask сервер запущен (python app.py)\n2. Сервер работает на http://localhost:5000\n3. .env файл настроен правильно');
+        });
     },
 
     // Загрузка тестовых данных для демо режима
@@ -437,24 +452,26 @@ html {
   background-color: #1a1a1a;
   color: white;
   border: 2px solid #e67e00;
-  padding: 15px 30px;
-  border-radius: 8px;
+  padding: 20px 40px;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   transition: all 0.3s ease;
-  gap: 15px;
+  min-width: 200px;
+  min-height: 60px;
 }
 
 .eve-login-button:hover {
   background-color: #e67e00;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(230, 126, 0, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(230, 126, 0, 0.4);
 }
 
 .eve-logo {
-  height: 24px;
+  height: 40px;
   width: auto;
+  max-width: 100%;
 }
 
 .mock-login-button {
