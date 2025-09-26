@@ -1,5 +1,5 @@
 <template>
-  <div class="character-panel" ref="panel" @scroll="$emit('scroll', $event)">
+  <div class="character-panel">
     <h2 class="panel-title">Characters</h2>
     <div class="characters-list">
       <div
@@ -70,13 +70,10 @@
 export default {
   name: "CharacterPanel",
   props: ["characters", "activities", "selectedCharacterId"],
-  emits: ["add-character", "remove-character", "select-character", "scroll"],
+  emits: ["add-character", "remove-character", "select-character"],
   methods: {
     getCharacterPortrait(characterId) {
       return `https://images.evetech.net/characters/${characterId}/portrait?size=128`;
-    },
-    setScrollTop(scrollTop) {
-      this.$refs.panel.scrollTop = scrollTop;
     },
   },
 };
@@ -87,8 +84,6 @@ export default {
   min-width: 350px;
   background-color: #20232a;
   padding: 20px 15px;
-  height: 100vh;
-  overflow-y: auto;
   border-right: 1px solid #3c414d;
   box-sizing: border-box;
 }
@@ -204,7 +199,7 @@ export default {
   justify-content: center;
   border-style: dashed;
   color: #888;
-  height: 60px;
+  height: 120px;
   border-radius: 8px;
   border: 2px solid #444;
   cursor: pointer;

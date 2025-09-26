@@ -1,25 +1,23 @@
 <template>
   <div class="app-container">
-    <CharacterPanel
-      ref="characterPanel"
-      class="character-panel-column"
-      :characters="characters"
-      :activities="activities"
-      @add-character="addMockCharacter"
-      @remove-character="removeMockCharacter"
-      @select-character="handleCharacterSelection"
-      :selected-character-id="selectedCharacterId"
-      @scroll="handlePanelScroll"
-    />
-    <JobsTimeline
-      ref="jobsTimeline"
-      class="timeline-column"
-      :jobs="filteredJobs"
-      :characters="characters"
-      :is-loading="loading"
-      :selected-character-id="selectedCharacterId"
-      @scroll="handleTimelineScroll"
-    />
+    <div class="main-scroll-container">
+      <CharacterPanel
+        class="character-panel-column"
+        :characters="characters"
+        :activities="activities"
+        @add-character="addMockCharacter"
+        @remove-character="removeMockCharacter"
+        @select-character="handleCharacterSelection"
+        :selected-character-id="selectedCharacterId"
+      />
+      <JobsTimeline
+        class="timeline-column"
+        :jobs="filteredJobs"
+        :characters="characters"
+        :is-loading="loading"
+        :selected-character-id="selectedCharacterId"
+      />
+    </div>
     <div v-if="!isLoggedIn && !loading" class="login-overlay">
       <div class="login-box">
         <h1>EVE Profit Master</h1>
@@ -45,8 +43,6 @@ export default {
     isLoggedIn: false,
     loading: false,
     selectedCharacterId: null,
-    isPanelScrolling: false,
-    isTimelineScrolling: false,
   }),
   computed: {
     filteredJobs() {
@@ -57,22 +53,6 @@ export default {
     },
   },
   methods: {
-    handlePanelScroll(event) {
-      if (this.selectedCharacterId || this.isTimelineScrolling) return;
-      this.isPanelScrolling = true;
-      this.$refs.jobsTimeline.setScrollTop(event.target.scrollTop);
-      requestAnimationFrame(() => {
-        this.isPanelScrolling = false;
-      });
-    },
-    handleTimelineScroll(event) {
-      if (this.selectedCharacterId || this.isPanelScrolling) return;
-      this.isTimelineScrolling = true;
-      this.$refs.characterPanel.setScrollTop(event.target.scrollTop);
-      requestAnimationFrame(() => {
-        this.isTimelineScrolling = false;
-      });
-    },
     handleCharacterSelection(charId) {
       this.selectedCharacterId =
         this.selectedCharacterId === charId ? null : charId;
@@ -116,6 +96,11 @@ html {
 .app-container {
   display: flex;
   height: 100vh;
+}
+.main-scroll-container {
+  display: flex;
+  flex-grow: 1;
+  overflow-y: auto;
 }
 .character-panel-column {
   flex-shrink: 0;
