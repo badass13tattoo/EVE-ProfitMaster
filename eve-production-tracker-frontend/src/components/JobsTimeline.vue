@@ -896,8 +896,9 @@ export default {
   height: 10px !important;
   width: 10px !important;
   animation: pulse 2s infinite;
-  z-index: 10;
-  position: relative;
+  z-index: 20;
+  position: sticky;
+  left: 0;
 }
 
 .job-bar .completed-job {
