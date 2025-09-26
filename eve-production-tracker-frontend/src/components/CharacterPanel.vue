@@ -1,6 +1,16 @@
 <template>
   <div class="character-panel">
-    <h2 class="panel-title">Characters</h2>
+    <div class="panel-header-controls">
+      <h2 class="panel-title">Characters</h2>
+      <button
+        @click="$emit('add-character')"
+        class="add-character-btn"
+        title="Добавить персонажа"
+      >
+        <span class="add-char-icon">+</span>
+        <span class="add-char-text">Add Character</span>
+      </button>
+    </div>
     <div class="characters-list" ref="charactersList">
       <div
         v-for="char in characters"
@@ -59,10 +69,6 @@
           </div>
         </div>
       </div>
-      <div @click="$emit('add-character')" class="add-char-card">
-        <div class="add-char-icon">+</div>
-        <span class="add-char-text">Add Character</span>
-      </div>
     </div>
   </div>
 </template>
@@ -98,31 +104,34 @@ export default {
   overflow: hidden;
   height: 100%;
 }
-.panel-title {
-  text-align: center;
-  margin-top: 0;
-  margin-bottom: 20px;
-  color: #e0e0e0;
-  font-weight: 300;
+.panel-header-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 15px 15px;
+  background-color: #20232a;
   position: sticky;
   top: 0;
-  background-color: #20232a;
-  z-index: 1;
-  padding-top: 20px;
-  padding-bottom: 10px;
+  z-index: 10;
+  border-bottom: 1px solid #3c414d;
   margin: -20px -15px 20px;
-  padding-left: 15px;
-  padding-right: 15px;
+}
+
+.panel-title {
+  margin: 0;
+  color: #e0e0e0;
+  font-weight: 300;
+  font-size: 18px;
 }
 .characters-list {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  height: calc(100% - 75px);
+  height: calc(100% - 95px); /* Увеличиваем высоту, так как убрали кнопку */
   overflow-y: scroll;
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
-  padding-bottom: 80px; /* Добавляем больше отступа снизу для кнопки */
+  padding-bottom: 20px; /* Уменьшаем отступ снизу */
 }
 .characters-list::-webkit-scrollbar {
   display: none;
@@ -221,22 +230,80 @@ export default {
 .info-line span {
   color: #abb2bf;
 }
-.add-char-card {
+.add-character-btn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-style: dashed;
-  color: #888;
-  height: 80px; /* Увеличиваем высоту кнопки */
-  border-radius: 8px;
-  border: 2px solid #444;
+  gap: 8px;
+  background-color: #4e9aef;
+  color: white;
+  border: 2px solid transparent;
+  padding: 8px 16px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 20px; /* Добавляем отступ снизу для кнопки */
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  white-space: nowrap;
 }
-.add-char-card:hover {
-  background-color: #333;
-  border-color: #777;
-  color: #fff;
+
+.add-character-btn:hover {
+  background-color: #3a7bc8;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(78, 154, 239, 0.3);
+}
+
+.add-character-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(78, 154, 239, 0.3);
+}
+
+.add-char-icon {
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.add-char-text {
+  font-size: 14px;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .panel-header-controls {
+    padding: 15px 10px 10px;
+    margin: -20px -15px 15px;
+  }
+
+  .add-character-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .add-char-text {
+    display: none; /* Скрываем текст на мобильных, оставляем только иконку */
+  }
+
+  .add-char-icon {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .panel-header-controls {
+    padding: 12px 8px 8px;
+    margin: -20px -15px 12px;
+  }
+
+  .panel-title {
+    font-size: 16px;
+  }
+
+  .add-character-btn {
+    padding: 8px;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    justify-content: center;
+  }
 }
 </style>

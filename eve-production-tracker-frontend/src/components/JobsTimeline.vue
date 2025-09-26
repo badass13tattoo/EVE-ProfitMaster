@@ -113,6 +113,8 @@
                 <div
                   v-for="job in getCompletedJobs(char.character_id)"
                   :key="`completed-${job.job_id}`"
+                  :data-job-id="job.job_id"
+                  :data-activity-id="job.activity_id"
                   class="completed-job-indicator"
                   :style="getCompletedJobIndicatorStyle(job)"
                   @mouseover="showTooltip(job, $event)"
@@ -136,6 +138,7 @@
                   <div
                     v-for="job in lane"
                     :key="job.job_id"
+                    :data-activity-id="job.activity_id"
                     class="job-bar"
                     :class="{
                       'has-overlap': job.hasOverlap,
@@ -162,7 +165,35 @@
       <small>Location: {{ tooltip.job.location_name }}</small
       ><br /><br />
       Type: {{ getJobType(tooltip.job.activity_id) }}<br />
-      <span v-if="tooltip.job.is_planet_job">
+
+      <!-- Специальная информация для PI работ -->
+      <span v-if="tooltip.job.activity_id === 100">
+        <div v-if="tooltip.job.planet_name">
+          <strong>Planet:</strong> {{ tooltip.job.planet_name }}<br />
+        </div>
+        <div v-if="tooltip.job.pi_type">
+          <strong>PI Type:</strong> {{ tooltip.job.pi_type }}<br />
+        </div>
+        <div v-if="tooltip.job.cycle_time">
+          <strong>Cycle Time:</strong>
+          {{ Math.round(tooltip.job.cycle_time / 60) }}m<br />
+        </div>
+        <span
+          v-if="tooltip.job.status === 'needs_attention'"
+          style="color: #e06c75"
+        >
+          ⚠️ Needs attention
+        </span>
+        <span v-else-if="tooltip.job.status === 'ready'">
+          ✅ Ready for collection
+        </span>
+        <span v-else>
+          completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
+        </span>
+      </span>
+
+      <!-- Обычные планетные работы -->
+      <span v-else-if="tooltip.job.is_planet_job">
         <span
           v-if="tooltip.job.status === 'needs_attention'"
           style="color: #e06c75"
@@ -173,6 +204,8 @@
           completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
         </span>
       </span>
+
+      <!-- Обычные работы -->
       <span v-else>
         completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
       </span>
@@ -366,8 +399,48 @@ export default {
 
       // Обновляем позиции индикаторов при горизонтальной прокрутке
       if (event.target.classList.contains("job-lanes-container")) {
-        this.$forceUpdate();
+        // Принудительно обновляем позиции индикаторов
+        this.$nextTick(() => {
+          this.updateIndicatorPositions();
+        });
       }
+    },
+
+    // Обновление позиций индикаторов
+    updateIndicatorPositions() {
+      // Находим все контейнеры индикаторов и обновляем их позиции
+      const indicatorContainers = this.$el.querySelectorAll(
+        ".completed-jobs-indicators"
+      );
+      indicatorContainers.forEach((container) => {
+        const indicators = container.querySelectorAll(
+          ".completed-job-indicator"
+        );
+        indicators.forEach((indicator) => {
+          // Обновляем стили индикатора
+          const jobId = indicator.getAttribute("data-job-id");
+          if (jobId) {
+            // Находим соответствующую работу и обновляем стиль
+            const job = this.findJobById(jobId);
+            if (job) {
+              const style = this.getCompletedJobIndicatorStyle(job);
+              Object.assign(indicator.style, style);
+            }
+          }
+        });
+      });
+    },
+
+    // Поиск работы по ID
+    findJobById(jobId) {
+      for (const characterId in this.jobs) {
+        const characterJobs = this.jobs[characterId];
+        if (characterJobs) {
+          const job = characterJobs.find((j) => j.job_id == jobId);
+          if (job) return job;
+        }
+      }
+      return null;
     },
     handleExternalScroll(scrollData) {
       if (scrollData.source === "timeline") return;
@@ -384,6 +457,10 @@ export default {
     },
     setScale(mode) {
       this.scaleMode = mode;
+      // Обновляем позиции индикаторов при смене масштаба
+      this.$nextTick(() => {
+        this.updateIndicatorPositions();
+      });
     },
     layoutJobs(jobs) {
       if (!jobs?.length) return [];
@@ -532,18 +609,31 @@ export default {
       const baseSize = Math.max(12, Math.min(24, this.pixelsPerHour * 0.8));
       const size = `${baseSize}px`;
 
-      // Убеждаемся, что индикатор не выходит за границы контейнера
+      // Получаем ширину контейнера строки персонажа
       const containerWidth = this.containerWidth || 1000;
+
+      // Вычисляем позицию относительно левого края строки персонажа
+      // Если работа завершилась в прошлом (left < 0), показываем у левого края
+      // Если работа завершилась в будущем, показываем в соответствующей позиции
+      let indicatorLeft = left;
+
+      // Ограничиваем позицию границами контейнера
       const maxLeft = containerWidth - parseInt(size);
-      const clampedLeft = Math.max(0, Math.min(left, maxLeft));
+      const clampedLeft = Math.max(0, Math.min(indicatorLeft, maxLeft));
+
+      // Определяем видимость индикатора
+      const isVisible = left >= -parseInt(size) && left <= containerWidth;
 
       return {
         left: `${clampedLeft}px`,
         width: size,
         height: size,
         backgroundColor: this.getJobColor(job.activity_id),
-        // Добавляем видимость только если работа в видимой области
-        opacity: left >= -parseInt(size) && left <= containerWidth ? 1 : 0,
+        opacity: isVisible ? 1 : 0,
+        // Добавляем дополнительную видимость для завершенных работ
+        visibility: isVisible ? "visible" : "hidden",
+        // Обеспечиваем правильное позиционирование относительно строки
+        position: "absolute",
       };
     },
 
@@ -576,13 +666,14 @@ export default {
     getJobColor(id) {
       return (
         {
-          1: "#E1AA36",
-          4: "#239BA7",
-          5: "#239BA7",
-          3: "#239BA7",
-          8: "#239BA7",
-          6: "#7ADAA5",
+          1: "#E1AA36", // Manufacturing
+          3: "#239BA7", // Copying
+          4: "#239BA7", // Material Efficiency
+          5: "#239BA7", // Time Efficiency
+          6: "#7ADAA5", // Reactions
           7: "#FF6B6B", // Planet Interaction
+          8: "#239BA7", // Invention
+          100: "#9B59B6", // PI Jobs - специальный цвет для планетарной индустрии
         }[id] || "#7f8c8d"
       );
     },
@@ -596,17 +687,32 @@ export default {
           6: "Reactions",
           7: "Planet Interaction",
           8: "Invention",
+          100: "Planetary Industry", // PI Jobs
         }[id] || "Unknown"
       );
     },
     isJobCompleted(job) {
+      // Для PI работ (activity_id: 100) проверяем статус
+      if (job.activity_id === 100) {
+        return (
+          job.status === "needs_attention" ||
+          job.status === "completed" ||
+          job.status === "ready" ||
+          new Date(job.end_date) <= this.now
+        );
+      }
+
       // Для планетных работ проверяем статус
       if (job.is_planet_job) {
         return (
-          job.status === "needs_attention" || new Date(job.end_date) <= this.now
+          job.status === "needs_attention" ||
+          job.status === "completed" ||
+          new Date(job.end_date) <= this.now
         );
       }
-      return new Date(job.end_date) <= this.now;
+
+      // Для обычных работ проверяем статус и время завершения
+      return job.status === "completed" || new Date(job.end_date) <= this.now;
     },
     getTimeRemaining(endDate) {
       const s = Math.max(0, (new Date(endDate) - this.now) / 1000);
@@ -629,10 +735,18 @@ export default {
     },
     updateTime() {
       this.now = new Date();
+      // Обновляем позиции индикаторов при изменении времени
+      this.$nextTick(() => {
+        this.updateIndicatorPositions();
+      });
     },
     updateContainerWidth() {
       if (this.$el) {
         this.containerWidth = this.$el.clientWidth;
+        // Обновляем позиции индикаторов при изменении размера контейнера
+        this.$nextTick(() => {
+          this.updateIndicatorPositions();
+        });
       }
     },
   },
@@ -798,13 +912,15 @@ export default {
 }
 
 .completed-jobs-indicators {
-  position: absolute;
+  position: sticky;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
-  z-index: 20;
+  z-index: 25;
+  /* Привязываем к левому краю строки персонажа */
+  transform: translateX(0);
 }
 
 .completed-job-indicator {
@@ -821,6 +937,8 @@ export default {
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   border: 2px solid rgba(255, 255, 255, 0.2);
+  /* Обеспечиваем видимость поверх всех элементов */
+  z-index: 30;
 }
 
 .completed-job-indicator:hover {
@@ -978,6 +1096,28 @@ export default {
 .job-bar.has-overlap {
   box-shadow: 0 0 8px 1px rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Специальные стили для PI работ */
+.job-bar[data-activity-id="100"] {
+  border: 2px solid rgba(155, 89, 182, 0.3);
+  box-shadow: 0 0 4px rgba(155, 89, 182, 0.2);
+}
+
+.job-bar[data-activity-id="100"]:hover {
+  border-color: rgba(155, 89, 182, 0.6);
+  box-shadow: 0 0 8px rgba(155, 89, 182, 0.4);
+}
+
+/* Стили для завершенных PI работ */
+.completed-job-indicator[data-activity-id="100"] {
+  border: 2px solid rgba(155, 89, 182, 0.4);
+  box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+}
+
+.completed-job-indicator[data-activity-id="100"]:hover {
+  border-color: rgba(155, 89, 182, 0.7);
+  box-shadow: 0 4px 12px rgba(155, 89, 182, 0.5);
 }
 .job-bar-fill {
   height: 100%;

@@ -106,6 +106,7 @@ export default {
   data: () => ({
     eventBus: reactive({}),
     jobs: {},
+    piJobs: {}, // Отдельные данные о PI работах
     characters: [],
     activities: {},
     planets: {}, // Данные о планетах для каждого персонажа
@@ -133,10 +134,25 @@ export default {
     ],
   }),
   computed: {
+    // Объединенные работы (обычные + PI)
+    allJobs() {
+      const combined = {};
+      for (const character of this.characters) {
+        const characterId = character.character_id;
+        const regularJobs = this.jobs[characterId] || [];
+        const piJobs = this.piJobs[characterId] || [];
+
+        // Объединяем все работы
+        combined[characterId] = [...regularJobs, ...piJobs];
+      }
+      return combined;
+    },
+
     filteredJobs() {
-      if (!this.selectedCharacterId) return this.jobs;
+      if (!this.selectedCharacterId) return this.allJobs;
       return {
-        [this.selectedCharacterId]: this.jobs[this.selectedCharacterId] || [],
+        [this.selectedCharacterId]:
+          this.allJobs[this.selectedCharacterId] || [],
       };
     },
   },
@@ -194,6 +210,7 @@ export default {
         this.characters = cachedData.characters || [];
         this.activities = cachedData.activities || {};
         this.jobs = cachedData.jobs || {};
+        this.piJobs = cachedData.piJobs || {};
         this.planets = cachedData.planets || {};
         this.isLoggedIn = this.characters.length > 0;
 
@@ -216,6 +233,7 @@ export default {
         characters: this.characters,
         activities: this.activities,
         jobs: this.jobs,
+        piJobs: this.piJobs,
         planets: this.planets,
       });
     },
@@ -288,7 +306,7 @@ export default {
           }
         }
 
-        // Загружаем планеты и добавляем их работы к обычным работам
+        // Загружаем планеты и обрабатываем PI работы
         for (const character of this.characters) {
           try {
             const planetsResponse = await fetch(
@@ -304,17 +322,28 @@ export default {
               // Сохраняем данные о планетах
               this.planets[character.character_id] = planets;
 
-              // Добавляем работы планет к обычным работам
-              if (this.jobs[character.character_id]) {
-                for (const planet of planets) {
-                  if (planet.jobs && planet.jobs.length > 0) {
-                    this.jobs[character.character_id] = this.jobs[
-                      character.character_id
-                    ].concat(planet.jobs);
-                    console.log(
-                      `Added ${planet.jobs.length} planet jobs for character ${character.character_id}`
-                    );
-                  }
+              // Обрабатываем PI работы отдельно
+              this.piJobs[character.character_id] = [];
+
+              for (const planet of planets) {
+                if (planet.jobs && planet.jobs.length > 0) {
+                  // Преобразуем работы планет в формат PI работ
+                  const piJobs = planet.jobs.map((job) => ({
+                    ...job,
+                    activity_id: 100, // Специальный ID для PI работ
+                    is_planet_job: true,
+                    planet_name: planet.name,
+                    planet_id: planet.planet_id,
+                    // Добавляем специфичные для PI поля
+                    pi_type: job.type || "extraction", // extraction, production, etc.
+                    cycle_time: job.cycle_time || 3600, // Время цикла в секундах
+                    is_continuous: job.is_continuous || false, // Непрерывная работа
+                  }));
+
+                  this.piJobs[character.character_id].push(...piJobs);
+                  console.log(
+                    `Added ${piJobs.length} PI jobs for character ${character.character_name} from planet ${planet.name}`
+                  );
                 }
               }
 
@@ -403,7 +432,7 @@ export default {
           }
         }
 
-        // Загружаем планеты
+        // Загружаем планеты и обновляем PI работы
         for (const character of this.characters) {
           try {
             const planetsResponse = await fetch(
@@ -422,14 +451,24 @@ export default {
                 );
                 this.planets[character.character_id] = newPlanets;
 
-                // Добавляем работы планет к обычным работам
-                if (this.jobs[character.character_id]) {
-                  for (const planet of newPlanets) {
-                    if (planet.jobs && planet.jobs.length > 0) {
-                      this.jobs[character.character_id] = this.jobs[
-                        character.character_id
-                      ].concat(planet.jobs);
-                    }
+                // Обновляем PI работы
+                this.piJobs[character.character_id] = [];
+
+                for (const planet of newPlanets) {
+                  if (planet.jobs && planet.jobs.length > 0) {
+                    // Преобразуем работы планет в формат PI работ
+                    const piJobs = planet.jobs.map((job) => ({
+                      ...job,
+                      activity_id: 100, // Специальный ID для PI работ
+                      is_planet_job: true,
+                      planet_name: planet.name,
+                      planet_id: planet.planet_id,
+                      pi_type: job.type || "extraction",
+                      cycle_time: job.cycle_time || 3600,
+                      is_continuous: job.is_continuous || false,
+                    }));
+
+                    this.piJobs[character.character_id].push(...piJobs);
                   }
                 }
               }
