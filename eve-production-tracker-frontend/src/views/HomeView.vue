@@ -210,6 +210,19 @@ export default {
         const jobsResponse = await fetch(`${this.apiBaseUrl}/get_jobs`);
         if (jobsResponse.ok) {
           this.jobs = await jobsResponse.json();
+          console.log("Loaded jobs data:", this.jobs);
+
+          // Проверяем структуру данных для каждого персонажа
+          for (const character of this.characters) {
+            const characterJobs = this.jobs[character.character_id];
+            if (characterJobs && characterJobs.length > 0) {
+              console.log(
+                `Jobs for ${character.character_name}:`,
+                characterJobs[0]
+              );
+              console.log(`Job fields:`, Object.keys(characterJobs[0]));
+            }
+          }
         }
 
         this.isLoggedIn = true;

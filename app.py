@@ -184,8 +184,24 @@ def create_app():
             
             if resp.status_code == 200:
                 jobs_data = resp.json()
-                jobs_by_character[str(user.character_id)] = jobs_data
-                print(f"Found {len(jobs_data)} jobs for {user.character_name}")
+                # Преобразуем данные EVE ESI API в формат, ожидаемый frontend
+                transformed_jobs = []
+                for job in jobs_data:
+                    transformed_job = {
+                        'job_id': job.get('job_id'),
+                        'product_name': job.get('product_type_id', 'Unknown Product'),  # EVE ESI возвращает ID, а не название
+                        'activity_id': job.get('activity_id'),
+                        'start_date': job.get('start_date'),
+                        'end_date': job.get('end_date'),
+                        'location_name': f"Location {job.get('location_id', 'Unknown')}",  # EVE ESI возвращает ID локации
+                        'status': 'in-progress' if job.get('status') == 'active' else 'completed'
+                    }
+                    transformed_jobs.append(transformed_job)
+                
+                jobs_by_character[str(user.character_id)] = transformed_jobs
+                print(f"Found {len(transformed_jobs)} jobs for {user.character_name}")
+                if transformed_jobs:
+                    print(f"Sample job data: {transformed_jobs[0]}")
             else:
                 print(f"Jobs API error for {user.character_name}: {resp.text}")
                 jobs_by_character[str(user.character_id)] = []
