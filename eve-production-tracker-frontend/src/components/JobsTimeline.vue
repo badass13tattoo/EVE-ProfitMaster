@@ -527,9 +527,9 @@ export default {
         };
       }
       return {
-        height: "120px",
-        minHeight: "120px",
-        maxHeight: "120px",
+        height: "135px",
+        minHeight: "135px",
+        maxHeight: "135px",
       };
     },
 
@@ -548,17 +548,15 @@ export default {
           // Свернутый персонаж - не добавляем высоту
           continue;
         } else {
-          topPosition += 120; // Стандартная высота персонажа
+          topPosition += 135; // Стандартная высота персонажа (120px + 15px gap)
         }
 
-        // Добавляем gap между персонажами (15px)
-        if (i < index - 1) {
-          topPosition += 15;
-        }
+        // Gap уже включен в высоту персонажа (135px = 120px + 15px gap)
+        // Дополнительный gap не нужен
       }
 
       // Определяем высоту текущего персонажа
-      let characterHeight = 120; // Стандартная высота
+      let characterHeight = 135; // Стандартная высота (120px + 15px gap)
       if (this.selectedCharacterId === characterId) {
         characterHeight = this.focusRowHeight;
       } else if (
@@ -1439,20 +1437,19 @@ export default {
   padding-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 15px;
   flex-grow: 1;
   position: relative;
 }
 .character-row-group {
-  height: 120px;
-  min-height: 120px;
-  max-height: 120px;
+  height: 135px;
+  min-height: 135px;
+  max-height: 135px;
   box-sizing: border-box;
-  border-bottom: 1px solid #3c414d;
   transition: all 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  margin-bottom: 15px; /* Добавляем отступ снизу вместо border */
 }
 .character-row-group.is-selected {
   background-color: #32363e;
@@ -1467,6 +1464,7 @@ export default {
   padding-top: 0;
   padding-bottom: 0;
   border: none;
+  margin-bottom: 0; /* Убираем отступ для скрытых строк */
 }
 
 /* Бордерлайны для обозначения границ таймлайнов персонажей */
