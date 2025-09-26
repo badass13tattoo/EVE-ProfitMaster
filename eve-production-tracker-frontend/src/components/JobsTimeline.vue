@@ -590,15 +590,45 @@ export default {
         content += `<span style="color: #ff6b6b;">⚠️ Требует внимания!</span><br>`;
       }
 
-      // Информация о добываемых ресурсах
-      if (planet.jobs && planet.jobs.length > 0) {
+      // Получаем все работы планеты (включая созданные виртуальные)
+      const planetJobs = this.getPlanetJobs(planet);
+
+      if (planetJobs.length > 0) {
         content += `<br><strong>Активные работы:</strong><br>`;
-        planet.jobs.forEach((job) => {
-          if (job.status === "active") {
+        planetJobs.forEach((job) => {
+          if (job.status === "active" && job.end_date) {
             const timeRemaining = this.getTimeRemaining(job.end_date);
-            content += `• ${job.product_name} - ${timeRemaining}<br>`;
+            const jobType = job.is_planet_job
+              ? "Планетарная добыча"
+              : job.product_name;
+            content += `• ${jobType} - ${timeRemaining}<br>`;
+
+            // Дополнительная информация для планетарных работ
+            if (job.is_planet_job) {
+              const startTime = new Date(job.start_date);
+              const endTime = new Date(job.end_date);
+              const duration = Math.round(
+                (endTime - startTime) / (1000 * 60 * 60)
+              ); // в часах
+              content += `  └─ Длительность: ${duration}ч<br>`;
+            }
           }
         });
+      } else {
+        content += `<br><span style="color: #888;">Нет активных работ</span><br>`;
+      }
+
+      // Информация о времени истечения экстракторов
+      if (planet.extractor_expiry_time) {
+        const expiryTime = new Date(planet.extractor_expiry_time);
+        const now = new Date();
+        if (expiryTime > now) {
+          const timeToExpiry = this.getTimeRemaining(
+            planet.extractor_expiry_time
+          );
+          content += `<br><strong>Время истечения экстракторов:</strong><br>`;
+          content += `• ${timeToExpiry}<br>`;
+        }
       }
 
       return content;
@@ -1127,9 +1157,8 @@ export default {
 }
 .job-lanes-container {
   padding: 15px 0;
-  max-height: 90px;
-  overflow-y: auto;
-  overflow-x: auto;
+  max-height: none;
+  overflow: visible;
   position: relative;
 }
 
@@ -1197,50 +1226,17 @@ export default {
   opacity: 1;
 }
 
-.job-lanes-container::-webkit-scrollbar {
-  height: 6px;
-  width: 6px;
-}
-
-.job-lanes-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.job-lanes-container::-webkit-scrollbar-thumb {
-  background-color: #4f5b6b;
-  border-radius: 3px;
-}
-
-.job-lanes-container::-webkit-scrollbar-corner {
-  background: transparent;
-}
+/* Скроллбары убраны - контейнеры теперь без скроллинга */
 
 .expanded-jobs-view {
   padding: 20px;
   color: #e0e0e0;
   height: 100%;
   position: relative;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
 }
 
-.expanded-jobs-view::-webkit-scrollbar {
-  width: 8px;
-}
-
-.expanded-jobs-view::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-.expanded-jobs-view::-webkit-scrollbar-thumb {
-  background-color: #4f5b6b;
-  border-radius: 4px;
-}
-
-.expanded-jobs-view::-webkit-scrollbar-thumb:hover {
-  background-color: #61afef;
-}
+/* Скроллбары убраны - контейнеры теперь без скроллинга */
 
 .focus-jobs-count {
   position: sticky;
