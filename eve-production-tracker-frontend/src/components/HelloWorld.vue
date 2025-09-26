@@ -1,114 +1,179 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br />
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener"
-        >vue-cli documentation</a
-      >.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li>
-        <a
-          href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel"
-          target="_blank"
-          rel="noopener"
-          >babel</a
-        >
-      </li>
-      <li>
-        <a
-          href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-router"
-          target="_blank"
-          rel="noopener"
-          >router</a
-        >
-      </li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li>
-        <a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a>
-      </li>
-      <li>
-        <a href="https://forum.vuejs.org" target="_blank" rel="noopener"
-          >Forum</a
-        >
-      </li>
-      <li>
-        <a href="https://chat.vuejs.org" target="_blank" rel="noopener"
-          >Community Chat</a
-        >
-      </li>
-      <li>
-        <a href="https://twitter.com/vuejs" target="_blank" rel="noopener"
-          >Twitter</a
-        >
-      </li>
-      <li>
-        <a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a>
-      </li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li>
-        <a href="https://router.vuejs.org" target="_blank" rel="noopener"
-          >vue-router</a
-        >
-      </li>
-      <li>
-        <a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a>
-      </li>
-      <li>
-        <a
-          href="https://github.com/vuejs/vue-devtools#vue-devtools"
-          target="_blank"
-          rel="noopener"
-          >vue-devtools</a
-        >
-      </li>
-      <li>
-        <a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener"
-          >vue-loader</a
-        >
-      </li>
-      <li>
-        <a
-          href="https://github.com/vuejs/awesome-vue"
-          target="_blank"
-          rel="noopener"
-          >awesome-vue</a
-        >
-      </li>
-    </ul>
+  <div class="app-container">
+    <CharacterPanel
+      ref="characterPanel"
+      class="character-panel-column"
+      :characters="characters"
+      :activities="activities"
+      @add-character="openAddJobModal"
+      @remove-character="removeMockCharacter"
+      @select-character="handleCharacterSelection"
+      :selected-character-id="selectedCharacterId"
+      @scroll="handlePanelScroll"
+    />
+    <JobsTimeline
+      ref="jobsTimeline"
+      class="timeline-column"
+      :jobs="filteredJobs"
+      :characters="characters"
+      :is-loading="loading"
+      :selected-character-id="selectedCharacterId"
+      @scroll="handleTimelineScroll"
+      @update-job-status="handleUpdateJobStatus"
+    />
+    <AddJobModal
+      v-if="isAddJobModalVisible"
+      :characters="characters"
+      @close="closeAddJobModal"
+      @add-job="handleAddJob"
+    />
+    <div v-if="!isLoggedIn && !loading" class="login-overlay">
+      <div class="login-box">
+        <h1>EVE Profit Master</h1>
+        <p>Для начала работы, нажмите кнопку ниже.</p>
+        <button @click="loadAppData" class="mock-login-button">
+          Начать с тестовыми данными
+        </button>
+      </div>
+    </div>
   </div>
 </template>
-
 <script>
+import CharacterPanel from "@/components/CharacterPanel.vue";
+import JobsTimeline from "@/components/JobsTimeline.vue";
+import AddJobModal from "@/components/AddJobModal.vue";
+import { mockCharacters, mockActivities, mockJobs } from "@/mock/mockData.js";
 export default {
-  name: "HelloWorld",
-  props: {
-    msg: String,
+  name: "HomeView",
+  components: { CharacterPanel, JobsTimeline, AddJobModal },
+  data: () => ({
+    jobs: {},
+    characters: [],
+    activities: {},
+    isLoggedIn: false,
+    loading: false,
+    selectedCharacterId: null,
+    isPanelScrolling: false,
+    isTimelineScrolling: false,
+    isAddJobModalVisible: false,
+  }),
+  computed: {
+    filteredJobs() {
+      if (!this.selectedCharacterId) return this.jobs;
+      return {
+        [this.selectedCharacterId]: this.jobs[this.selectedCharacterId] || [],
+      };
+    },
+  },
+  methods: {
+    handlePanelScroll(event) {
+      if (this.selectedCharacterId || this.isTimelineScrolling) return;
+      this.isPanelScrolling = true;
+      this.$refs.jobsTimeline.setScrollTop(event.target.scrollTop);
+      requestAnimationFrame(() => {
+        this.isPanelScrolling = false;
+      });
+    },
+    handleTimelineScroll(event) {
+      if (this.selectedCharacterId || this.isPanelScrolling) return;
+      this.isTimelineScrolling = true;
+      this.$refs.characterPanel.setScrollTop(event.target.scrollTop);
+      requestAnimationFrame(() => {
+        this.isTimelineScrolling = false;
+      });
+    },
+    handleCharacterSelection(charId) {
+      this.selectedCharacterId =
+        this.selectedCharacterId === charId ? null : charId;
+    },
+    loadAppData() {
+      this.loading = true;
+      this.characters = mockCharacters;
+      this.activities = mockActivities;
+      this.jobs = mockJobs;
+      this.isLoggedIn = true;
+      this.loading = false;
+    },
+    openAddJobModal() {
+      this.isAddJobModalVisible = true;
+    },
+    closeAddJobModal() {
+      this.isAddJobModalVisible = false;
+    },
+    handleAddJob(newJob) {
+      if (!this.jobs[newJob.character_id]) {
+        this.jobs[newJob.character_id] = [];
+      }
+      this.jobs[newJob.character_id].push(newJob);
+    },
+    removeMockCharacter(characterId) {
+      if (!confirm("Уверены?")) return;
+      this.characters = this.characters.filter(
+        (c) => c.character_id !== characterId
+      );
+      delete this.jobs[characterId];
+      delete this.activities[characterId];
+      if (this.characters.length === 0) this.isLoggedIn = false;
+    },
+    handleUpdateJobStatus({ jobId, newStatus }) {
+      for (const charId in this.jobs) {
+        const job = this.jobs[charId].find((j) => j.job_id === jobId);
+        if (job) {
+          job.status = newStatus;
+          break;
+        }
+      }
+    },
   },
 };
 </script>
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
+<style>
+body,
+html {
+  margin: 0;
   padding: 0;
+  background-color: #1a1a1a;
+  color: #f0f0f0;
+  font-family: "Segoe UI", sans-serif;
 }
-li {
-  display: inline-block;
-  margin: 0 10px;
+</style>
+<style scoped>
+.app-container {
+  display: flex;
+  height: 100vh;
 }
-a {
-  color: #42b983;
+.character-panel-column {
+  flex-shrink: 0;
+}
+.timeline-column {
+  flex-grow: 1;
+}
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+.login-box {
+  text-align: center;
+  padding: 40px;
+  background-color: #2c2c2c;
+  border-radius: 10px;
+}
+.mock-login-button {
+  background-color: #4e9aef;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 18px;
+  margin-top: 20px;
 }
 </style>

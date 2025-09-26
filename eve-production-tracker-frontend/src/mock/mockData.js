@@ -127,6 +127,7 @@ export const mockJobs = {
       start_date: addHours(now, -2),
       end_date: addHours(now, 2),
       location_name: "Jita IV",
+      status: "in-progress",
     },
     {
       job_id: 2,
@@ -135,6 +136,7 @@ export const mockJobs = {
       start_date: addHours(now, -1),
       end_date: addHours(now, 3),
       location_name: "Jita IV",
+      status: "in-progress",
     },
     {
       job_id: 3,
@@ -143,6 +145,7 @@ export const mockJobs = {
       start_date: addHours(now, 4),
       end_date: addHours(now, 7),
       location_name: "Amarr VIII",
+      status: "in-progress",
     },
     {
       job_id: 4,
@@ -151,6 +154,7 @@ export const mockJobs = {
       start_date: addHours(now, 0),
       end_date: addHours(now, 5),
       location_name: "Jita IV",
+      status: "in-progress",
     },
     {
       job_id: 8,
@@ -159,6 +163,7 @@ export const mockJobs = {
       start_date: addHours(now, 2.5),
       end_date: addHours(now, 4.5),
       location_name: "Structure 1",
+      status: "in-progress",
     },
   ],
   90000002: [
@@ -169,6 +174,7 @@ export const mockJobs = {
       start_date: addHours(now, -10),
       end_date: addHours(now, 10),
       location_name: "Rens VI",
+      status: "in-progress",
     },
     {
       job_id: 6,
@@ -177,6 +183,7 @@ export const mockJobs = {
       start_date: addHours(now, -8),
       end_date: addHours(now, 12),
       location_name: "Rens VI",
+      status: "paused",
     },
   ],
   90000003: [
@@ -186,6 +193,7 @@ export const mockJobs = {
       activity_id: 3,
       start_date: addHours(now, -20),
       end_date: addHours(now, 4),
+      status: "in-progress",
     },
     {
       job_id: 10,
@@ -193,6 +201,7 @@ export const mockJobs = {
       activity_id: 3,
       start_date: addHours(now, -20),
       end_date: addHours(now, 4),
+      status: "in-progress",
     },
     {
       job_id: 11,
@@ -200,6 +209,7 @@ export const mockJobs = {
       activity_id: 3,
       start_date: addHours(now, -20),
       end_date: addHours(now, 4),
+      status: "in-progress",
     },
     {
       job_id: 12,
@@ -207,6 +217,7 @@ export const mockJobs = {
       activity_id: 3,
       start_date: addHours(now, -20),
       end_date: addHours(now, 4),
+      status: "in-progress",
     },
     {
       job_id: 13,
@@ -214,6 +225,7 @@ export const mockJobs = {
       activity_id: 1,
       start_date: addHours(now, 5),
       end_date: addHours(now, 8),
+      status: "in-progress",
     },
   ],
   90000004: [
@@ -223,6 +235,7 @@ export const mockJobs = {
       activity_id: 6,
       start_date: addHours(now, -1),
       end_date: addHours(now, 6),
+      status: "in-progress",
     },
     {
       job_id: 15,
@@ -230,6 +243,7 @@ export const mockJobs = {
       activity_id: 6,
       start_date: addHours(now, -1),
       end_date: addHours(now, 6),
+      status: "in-progress",
     },
   ],
   90000005: [],
@@ -240,6 +254,7 @@ export const mockJobs = {
       activity_id: 1,
       start_date: addHours(now, -48),
       end_date: addHours(now, 24),
+      status: "in-progress",
     },
     {
       job_id: 17,
@@ -247,6 +262,7 @@ export const mockJobs = {
       activity_id: 1,
       start_date: addHours(now, -40),
       end_date: addHours(now, 32),
+      status: "in-progress",
     },
     {
       job_id: 18,
@@ -254,6 +270,7 @@ export const mockJobs = {
       activity_id: 1,
       start_date: addHours(now, -32),
       end_date: addHours(now, 40),
+      status: "in-progress",
     },
     {
       job_id: 19,
@@ -261,6 +278,7 @@ export const mockJobs = {
       activity_id: 1,
       start_date: addHours(now, -24),
       end_date: addHours(now, 48),
+      status: "in-progress",
     },
     {
       job_id: 20,
@@ -268,6 +286,7 @@ export const mockJobs = {
       activity_id: 1,
       start_date: addHours(now, -16),
       end_date: addHours(now, 56),
+      status: "in-progress",
     },
   ],
   90000007: [
@@ -275,8 +294,9 @@ export const mockJobs = {
       job_id: 21,
       product_name: "T2 Ammo Crystal (Invention)",
       activity_id: 8,
-      start_date: addHours(now, 0),
-      end_date: addHours(now, 1),
+      start_date: addHours(now, -2),
+      end_date: addHours(now, -1),
+      status: "completed",
     },
     {
       job_id: 22,
@@ -284,6 +304,7 @@ export const mockJobs = {
       activity_id: 1,
       start_date: addHours(now, 1),
       end_date: addHours(now, 2),
+      status: "in-progress",
     },
   ],
   90000008: [],
@@ -294,6 +315,7 @@ export const mockJobs = {
       activity_id: 1,
       start_date: addHours(now, -0.5),
       end_date: addHours(now, 0.5),
+      status: "in-progress",
     },
   ],
   90000010: [],
@@ -305,6 +327,7 @@ export const mockJobs = {
       activity_id: 3,
       start_date: addHours(now, -2),
       end_date: addHours(now, 3),
+      status: "in-progress",
     },
     {
       job_id: 25,
@@ -312,6 +335,7 @@ export const mockJobs = {
       activity_id: 3,
       start_date: addHours(now, -1),
       end_date: addHours(now, 4),
+      status: "in-progress",
     },
   ],
 };
