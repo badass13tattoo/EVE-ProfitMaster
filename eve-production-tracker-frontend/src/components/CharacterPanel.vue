@@ -122,6 +122,7 @@ export default {
   overflow-y: scroll;
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
+  padding-bottom: 20px; /* Добавляем отступ снизу для кнопки */
 }
 .characters-list::-webkit-scrollbar {
   display: none;

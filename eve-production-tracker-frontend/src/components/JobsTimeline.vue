@@ -146,6 +146,50 @@
                 </div>
               </template>
             </div>
+
+            <!-- Отображение планет персонажа -->
+            <div
+              v-if="
+                planets[char.character_id] &&
+                planets[char.character_id].length > 0
+              "
+              class="planets-section"
+            >
+              <div class="planets-header">
+                <span class="planets-title"
+                  >🪐 Planets ({{ planets[char.character_id].length }})</span
+                >
+              </div>
+              <div class="planets-list">
+                <div
+                  v-for="planet in planets[char.character_id]"
+                  :key="planet.planet_id"
+                  class="planet-item"
+                  :class="{ 'needs-attention': planet.needs_attention }"
+                >
+                  <div class="planet-info">
+                    <span class="planet-name">{{ planet.planet_name }}</span>
+                    <span class="planet-system">{{
+                      planet.solar_system_name
+                    }}</span>
+                  </div>
+                  <div class="planet-stats">
+                    <span
+                      class="extractors"
+                      v-if="planet.active_extractors > 0"
+                    >
+                      ⚡ {{ planet.active_extractors }}
+                    </span>
+                    <span class="jobs" v-if="planet.active_jobs > 0">
+                      🔧 {{ planet.active_jobs }}
+                    </span>
+                    <span class="attention" v-if="planet.needs_attention">
+                      ⚠️ Needs attention
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -163,7 +207,7 @@
 <script>
 export default {
   name: "JobsTimeline",
-  props: ["jobs", "characters", "isLoading", "selectedCharacterId"],
+  props: ["jobs", "characters", "planets", "isLoading", "selectedCharacterId"],
   inject: ["eventBus"],
   emits: [],
   data: () => ({
@@ -453,9 +497,9 @@ export default {
         const left = (endOffsetMs / 3600e3) * this.pixelsPerHour;
         return {
           transform: `translateX(${left}px)`,
-          width: "30px",
-          height: "30px",
-          borderRadius: "6px",
+          width: "10px",
+          height: "10px",
+          borderRadius: "2px",
         };
       }
 
@@ -818,15 +862,15 @@ export default {
 }
 
 .job-bar.completed-job-bar {
-  height: 30px !important;
-  width: 30px !important;
+  height: 10px !important;
+  width: 10px !important;
   animation: pulse 2s infinite;
 }
 
 .job-bar .completed-job {
-  width: 30px !important;
-  height: 30px !important;
-  border-radius: 6px !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 2px !important;
   animation: pulse 2s infinite;
 }
 .job-bar.has-overlap {
@@ -896,5 +940,92 @@ export default {
     opacity: 1;
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
   }
+}
+
+/* Стили для планет */
+.planets-section {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #1e1e1e;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+.planets-header {
+  margin-bottom: 8px;
+}
+
+.planets-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #61afef;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.planets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.planet-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background-color: #2c2c2c;
+  border-radius: 4px;
+  border: 1px solid #444;
+  transition: all 0.2s ease;
+}
+
+.planet-item.needs-attention {
+  border-color: #e06c75;
+  background-color: #2d1b1b;
+  animation: pulse 2s infinite;
+}
+
+.planet-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.planet-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.planet-system {
+  font-size: 10px;
+  color: #888;
+}
+
+.planet-stats {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.planet-stats span {
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background-color: #333;
+}
+
+.extractors {
+  color: #98c379;
+}
+
+.jobs {
+  color: #61afef;
+}
+
+.attention {
+  color: #e06c75;
+  font-weight: 600;
 }
 </style>

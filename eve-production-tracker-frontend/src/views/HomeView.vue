@@ -44,6 +44,7 @@
           class="timeline-column"
           :jobs="filteredJobs"
           :characters="characters"
+          :planets="planets"
           :is-loading="loading"
           :selected-character-id="selectedCharacterId"
         />
@@ -91,6 +92,7 @@ export default {
     jobs: {},
     characters: [],
     activities: {},
+    planets: {}, // Данные о планетах для каждого персонажа
     isLoggedIn: false,
     loading: false,
     selectedCharacterId: null,
@@ -301,6 +303,9 @@ export default {
         if (planetsResponse.ok) {
           const planets = await planetsResponse.json();
           console.log(`Planets for character ${characterId}:`, planets);
+
+          // Сохраняем данные о планетах
+          this.planets[characterId] = planets;
 
           // Анализируем планеты, требующие внимания
           const planetsNeedingAttention = planets.filter(
