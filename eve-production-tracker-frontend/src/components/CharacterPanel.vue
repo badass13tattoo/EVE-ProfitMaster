@@ -126,7 +126,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 15px 8px; /* Уменьшаем padding на 15px (20->12, 15->8) */
+  padding: 7px 15px 3px; /* Уменьшаем padding еще на 5px (12->7, 8->3) */
   background-color: #20232a;
   position: sticky;
   top: 0;
@@ -144,8 +144,8 @@ export default {
 }
 .characters-list {
   height: calc(
-    100% - 90px
-  ); /* Уменьшаем на 15px (105->90) с учетом уменьшения заголовка */
+    100% - 85px
+  ); /* Уменьшаем еще на 5px (90->85) с учетом дополнительного уменьшения заголовка */
   padding: 10px 0 40px 0; /* Добавляем отступы сверху и снизу */
 }
 .character-card {
@@ -290,7 +290,7 @@ export default {
 /* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
   .panel-header-controls {
-    padding: 7px 10px 5px; /* Уменьшаем на 15px (15->7, 10->5) */
+    padding: 2px 10px 0px; /* Уменьшаем еще на 5px (7->2, 5->0) */
     margin: -20px -15px 15px;
   }
 
@@ -310,7 +310,7 @@ export default {
 
 @media (max-width: 480px) {
   .panel-header-controls {
-    padding: 4px 8px 3px; /* Уменьшаем на 15px (12->4, 8->3) */
+    padding: 0px 8px 0px; /* Уменьшаем еще на 5px (4->0, 3->0) */
     margin: -20px -15px 12px;
   }
 
