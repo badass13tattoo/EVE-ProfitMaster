@@ -526,11 +526,8 @@ export default {
           border: "none",
         };
       }
-      return {
-        height: "135px",
-        minHeight: "135px",
-        maxHeight: "135px",
-      };
+      // Убираем жесткие размеры - теперь высота определяется содержимым + gap контейнера
+      return {};
     },
 
     getCharacterBorderStyle(characterId, index) {
@@ -548,15 +545,14 @@ export default {
           // Свернутый персонаж - не добавляем высоту
           continue;
         } else {
-          topPosition += 135; // Стандартная высота персонажа (120px + 15px gap)
+          // Стандартная высота персонажа теперь определяется содержимым + gap контейнера
+          // Используем базовую высоту 120px + gap 15px = 135px
+          topPosition += 135;
         }
-
-        // Gap уже включен в высоту персонажа (135px = 120px + 15px gap)
-        // Дополнительный gap не нужен
       }
 
       // Определяем высоту текущего персонажа
-      let characterHeight = 135; // Стандартная высота (120px + 15px gap)
+      let characterHeight = 135; // Базовая высота (120px + 15px gap)
       if (this.selectedCharacterId === characterId) {
         characterHeight = this.focusRowHeight;
       } else if (
@@ -1437,19 +1433,17 @@ export default {
   padding-top: 10px;
   display: flex;
   flex-direction: column;
+  gap: 15px; /* Совпадает с gap в .characters-list */
   flex-grow: 1;
   position: relative;
 }
 .character-row-group {
-  height: 135px;
-  min-height: 135px;
-  max-height: 135px;
+  /* Удалены жесткие размеры высоты для гибкого вертикального ритма */
   box-sizing: border-box;
   transition: all 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  margin-bottom: 15px; /* Добавляем отступ снизу вместо border */
 }
 .character-row-group.is-selected {
   background-color: #32363e;
@@ -1464,7 +1458,6 @@ export default {
   padding-top: 0;
   padding-bottom: 0;
   border: none;
-  margin-bottom: 0; /* Убираем отступ для скрытых строк */
 }
 
 /* Бордерлайны для обозначения границ таймлайнов персонажей */
