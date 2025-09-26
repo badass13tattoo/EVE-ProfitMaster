@@ -1,6 +1,10 @@
 <template>
   <div class="character-panel">
-    <h2 class="panel-title">Characters</h2>
+    <div class="tabs-header-container">
+      <div class="tab-item is-active">
+        <img src="/icons/characters.svg" alt="Персонажи" class="tab-icon" />
+      </div>
+    </div>
     <div class="characters-list">
       <div
         v-for="char in characters"
@@ -83,21 +87,41 @@ export default {
   width: 350px;
   min-width: 350px;
   background-color: #20232a;
-  padding: 20px 15px;
+  padding: 0 15px;
   border-right: 1px solid #3c414d;
   box-sizing: border-box;
+  height: 100vh;
+  overflow-y: auto;
 }
-.panel-title {
-  text-align: center;
-  margin-top: 0;
-  margin-bottom: 20px;
-  color: #e0e0e0;
-  font-weight: 300;
+.tabs-header-container {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  position: sticky;
+  top: 0;
+  background-color: #20232a;
+  z-index: 10;
+  padding-top: 20px;
+}
+.tab-item {
+  padding: 5px;
+  cursor: pointer;
+}
+.tab-item.is-active {
+  border-bottom: 2px solid #61afef;
+}
+.tab-icon {
+  width: 24px;
+  height: 24px;
+  filter: invert(80%) sepia(10%) saturate(200%) hue-rotate(180deg)
+    brightness(90%) contrast(90%);
 }
 .characters-list {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  padding-bottom: 20px;
 }
 .character-card {
   display: flex;

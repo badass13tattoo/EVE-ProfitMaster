@@ -421,8 +421,9 @@ export default {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background-color: #282c34;
+  height: 100vh;
+  overflow-y: auto;
 }
 .timeline-controls {
   padding: 10px 20px;
@@ -430,6 +431,9 @@ export default {
   border-bottom: 1px solid #3c414d;
   flex-shrink: 0;
   text-align: right;
+  position: sticky;
+  top: 0;
+  z-index: 15;
 }
 .timeline-controls button {
   background-color: #3a3f4b;
@@ -460,9 +464,9 @@ export default {
 }
 .time-headers {
   position: sticky;
-  top: 0;
+  top: 51px;
   background-color: #282c34;
-  z-index: 2;
+  z-index: 10;
   height: 20px;
   border-bottom: 1px solid #444;
 }

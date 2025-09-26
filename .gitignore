@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+instance/
+
+# Node
+eve-production-tracker-frontend/node_modules/
+
+# Logs
+npm_output.log
+
+# Verification
+verify_local_scroll.py
+verification_final.png
