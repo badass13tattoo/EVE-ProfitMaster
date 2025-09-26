@@ -1,6 +1,11 @@
 <template>
   <div class="character-panel">
-    <h2 class="panel-title">Characters</h2>
+    <div class="panel-header-controls">
+      <h2 class="panel-title">Characters</h2>
+      <button @click="$emit('add-character')" class="add-char-btn">
+        + Add
+      </button>
+    </div>
     <div class="characters-list" ref="charactersList">
       <div
         v-for="char in characters"
@@ -59,10 +64,6 @@
           </div>
         </div>
       </div>
-      <div @click="$emit('add-character')" class="add-char-card">
-        <div class="add-char-icon">+</div>
-        <span class="add-char-text">Add Character</span>
-      </div>
     </div>
   </div>
 </template>
@@ -98,31 +99,45 @@ export default {
   overflow: hidden;
   height: 100%;
 }
-.panel-title {
-  text-align: center;
-  margin-top: 0;
-  margin-bottom: 20px;
-  color: #e0e0e0;
-  font-weight: 300;
+.panel-header-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   position: sticky;
-  top: 0;
+  top: -20px; /* Компенсируем padding родителя */
   background-color: #20232a;
   z-index: 1;
-  padding-top: 20px;
-  padding-bottom: 10px;
+  padding: 20px 0 10px;
   margin: -20px -15px 20px;
   padding-left: 15px;
   padding-right: 15px;
+}
+.panel-title {
+  margin: 0;
+  color: #e0e0e0;
+  font-weight: 300;
+}
+.add-char-btn {
+  background-color: #3a3f4b;
+  color: #ddd;
+  border: 1px solid #555;
+  padding: 5px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.add-char-btn:hover {
+  background-color: #61afef;
+  color: #fff;
 }
 .characters-list {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  height: calc(100% - 75px);
+  height: calc(100% - 55px);
   overflow-y: scroll;
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
-  padding-bottom: 80px; /* Добавляем больше отступа снизу для кнопки */
 }
 .characters-list::-webkit-scrollbar {
   display: none;
@@ -220,23 +235,5 @@ export default {
 }
 .info-line span {
   color: #abb2bf;
-}
-.add-char-card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-style: dashed;
-  color: #888;
-  height: 80px; /* Увеличиваем высоту кнопки */
-  border-radius: 8px;
-  border: 2px solid #444;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 20px; /* Добавляем отступ снизу для кнопки */
-}
-.add-char-card:hover {
-  background-color: #333;
-  border-color: #777;
-  color: #fff;
 }
 </style>
