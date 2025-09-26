@@ -541,13 +541,43 @@ def create_app():
                         # Добавляем работу для каждого экстрактора
                         for extractor in extractors:
                             if extractor.get('state') == 'active':
+                                start_time = extractor.get('start_time', '')
+                                expiry_time = extractor.get('expiry_time', '')
+                                
+                                # Вычисляем время до завершения
+                                time_remaining_hours = 0
+                                duration_hours = 0
+                                progress_percentage = 0
+                                
+                                if start_time and expiry_time:
+                                    try:
+                                        start_dt = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                                        expiry_dt = datetime.datetime.fromisoformat(expiry_time.replace('Z', '+00:00'))
+                                        now = datetime.datetime.now(datetime.timezone.utc)
+                                        
+                                        duration_hours = (expiry_dt - start_dt).total_seconds() / 3600
+                                        time_remaining_hours = max(0, (expiry_dt - now).total_seconds() / 3600)
+                                        
+                                        if duration_hours > 0:
+                                            progress_percentage = min(100, max(0, ((now - start_dt).total_seconds() / (expiry_dt - start_dt).total_seconds()) * 100))
+                                        
+                                    except Exception as e:
+                                        print(f"Error parsing dates for extractor {extractor.get('pin_id')}: {e}")
+                                
+                                # Определяем приоритет на основе времени до завершения
+                                priority = 'low'
+                                if time_remaining_hours < 1:
+                                    priority = 'high'
+                                elif time_remaining_hours < 24:
+                                    priority = 'medium'
+                                
                                 planet_jobs.append({
                                     'job_id': f"planet_{planet['planet_id']}_extractor_{extractor.get('pin_id', 'unknown')}",
                                     'product_name': f"Extractor on {planet_info.get('name', f'Planet {planet["planet_id"]}')}",
                                     'product_type_id': extractor.get('type_id', 2250),
                                     'activity_id': 7,  # Planet Interaction
-                                    'start_date': extractor.get('start_time', ''),
-                                    'end_date': extractor.get('expiry_time', ''),
+                                    'start_date': start_time,
+                                    'end_date': expiry_time,
                                     'location_name': f"{planet_info.get('name', f'Planet {planet["planet_id"]}')} - {system_info.get('name', f'System {planet["solar_system_id"]}')}",
                                     'location_id': planet['planet_id'],
                                     'status': 'active' if not needs_attention else 'needs_attention',
@@ -555,8 +585,37 @@ def create_app():
                                     'cost': 0,
                                     'planet_id': planet['planet_id'],
                                     'extractor_id': extractor.get('pin_id'),
-                                    'is_planet_job': True
+                                    'is_planet_job': True,
+                                    'duration_hours': round(duration_hours, 2),
+                                    'time_remaining_hours': round(time_remaining_hours, 2),
+                                    'progress_percentage': round(progress_percentage, 1),
+                                    'priority': priority,
+                                    'is_completed': time_remaining_hours <= 0,
+                                    'is_paused': False
                                 })
+                        
+                        # Вычисляем общее время до завершения всех работ на планете
+                        earliest_expiry = None
+                        latest_expiry = None
+                        total_time_remaining = 0
+                        
+                        for job in planet_jobs:
+                            if job.get('end_date'):
+                                try:
+                                    expiry_dt = datetime.datetime.fromisoformat(job['end_date'].replace('Z', '+00:00'))
+                                    if earliest_expiry is None or expiry_dt < earliest_expiry:
+                                        earliest_expiry = expiry_dt
+                                    if latest_expiry is None or expiry_dt > latest_expiry:
+                                        latest_expiry = expiry_dt
+                                    total_time_remaining += job.get('time_remaining_hours', 0)
+                                except:
+                                    pass
+                        
+                        # Определяем время до следующего завершения
+                        next_completion_hours = 0
+                        if earliest_expiry:
+                            now = datetime.datetime.now(datetime.timezone.utc)
+                            next_completion_hours = max(0, (earliest_expiry - now).total_seconds() / 3600)
                         
                         planet_data = {
                             'planet_id': planet['planet_id'],
@@ -569,7 +628,13 @@ def create_app():
                             'active_jobs': active_jobs,
                             'jobs': planet_jobs,
                             'extractors': extractors,
-                            'pins': pins
+                            'pins': pins,
+                            # Временная информация
+                            'next_completion_hours': round(next_completion_hours, 2),
+                            'total_time_remaining_hours': round(total_time_remaining, 2),
+                            'earliest_expiry': earliest_expiry.isoformat() if earliest_expiry else None,
+                            'latest_expiry': latest_expiry.isoformat() if latest_expiry else None,
+                            'extractor_expiry_time': earliest_expiry.isoformat() if earliest_expiry else None
                         }
                         
                         planets_with_details.append(planet_data)
@@ -583,6 +648,113 @@ def create_app():
         except Exception as e:
             print(f"Error loading planets: {str(e)}")
             return jsonify({'error': f'Ошибка получения планет: {str(e)}'}), 500
+
+    # Industry endpoints - Detailed industrial jobs data collection
+    @app.route('/api/industry/characters/<int:character_id>/jobs/detailed')
+    def get_detailed_industry_jobs(character_id):
+        """Get detailed industry jobs data with all enriched information"""
+        try:
+            user = User.query.filter_by(character_id=character_id).first()
+            if not user:
+                return jsonify({'error': 'Character not found'}), 404
+            
+            # Refresh access token
+            if not refresh_access_token(user):
+                return jsonify({'error': 'Authentication failed'}), 401
+            
+            # Get jobs data
+            jobs_url = f'https://esi.evetech.net/latest/characters/{user.character_id}/industry/jobs/'
+            headers = {'Authorization': f'Bearer {user.access_token}'}
+            
+            resp = requests.get(jobs_url, headers=headers)
+            if resp.status_code != 200:
+                return jsonify({'error': f'ESI API error: {resp.status_code}'}), 500
+            
+            jobs_data = resp.json()
+            
+            # Process and enrich jobs data
+            processed_jobs = []
+            for job in jobs_data:
+                # Get product info
+                product_type_id = job.get('product_type_id')
+                product_info = get_cached_type_info(product_type_id) if product_type_id else {'name': 'Unknown Product'}
+                
+                # Get location info
+                location_id = job.get('location_id')
+                location_info = get_cached_location_info(location_id) if location_id else {'name': 'Unknown Location'}
+                
+                # Calculate additional fields
+                start_date = datetime.datetime.fromisoformat(job.get('start_date', '').replace('Z', '+00:00'))
+                end_date = datetime.datetime.fromisoformat(job.get('end_date', '').replace('Z', '+00:00'))
+                now = datetime.datetime.now(datetime.timezone.utc)
+                
+                duration_hours = (end_date - start_date).total_seconds() / 3600
+                time_remaining_hours = max(0, (end_date - now).total_seconds() / 3600) if job.get('status') == 'active' else 0
+                progress_percentage = min(100, max(0, ((now - start_date).total_seconds() / (end_date - start_date).total_seconds()) * 100)) if job.get('status') == 'active' else 100
+                
+                # Determine priority
+                priority = 'low'
+                if time_remaining_hours < 1 and job.get('status') == 'active':
+                    priority = 'high'
+                elif time_remaining_hours < 24 and job.get('status') == 'active':
+                    priority = 'medium'
+                
+                # Determine risk level based on system security (simplified)
+                risk_level = 'low'  # Default, would need system info to determine properly
+                
+                processed_job = {
+                    'job_id': job.get('job_id'),
+                    'character_id': character_id,
+                    'product_type_id': job.get('product_type_id'),
+                    'product_name': product_info.get('name', f'Type {job.get("product_type_id")}'),
+                    'activity_id': job.get('activity_id'),
+                    'activity_name': get_activity_name(job.get('activity_id')),
+                    'start_date': job.get('start_date'),
+                    'end_date': job.get('end_date'),
+                    'location_id': job.get('location_id'),
+                    'location_name': location_info.get('name', f'Location {job.get("location_id")}'),
+                    'status': job.get('status'),
+                    'runs': job.get('runs', 1),
+                    'cost': job.get('cost', 0),
+                    'duration_hours': round(duration_hours, 2),
+                    'time_remaining_hours': round(time_remaining_hours, 2),
+                    'is_completed': job.get('status') != 'active',
+                    'is_paused': job.get('status') == 'paused',
+                    'progress_percentage': round(progress_percentage, 1),
+                    'priority': priority,
+                    'risk_level': risk_level,
+                    'efficiency': 100.0,  # Simplified
+                    'system_name': 'Unknown',  # Would need additional API call
+                    'system_security': 0.5  # Default, would need additional API call
+                }
+                processed_jobs.append(processed_job)
+            
+            return jsonify({
+                'character_id': character_id,
+                'jobs': processed_jobs,
+                'total_jobs': len(processed_jobs),
+                'active_jobs': len([j for j in processed_jobs if j['status'] == 'active']),
+                'completed_jobs': len([j for j in processed_jobs if j['is_completed']])
+            })
+            
+        except Exception as e:
+            print(f"Error getting detailed industry jobs: {str(e)}")
+            return jsonify({'error': f'Ошибка получения индустриальных работ: {str(e)}'}), 500
+
+    def get_activity_name(activity_id):
+        """Get human-readable activity name"""
+        activities = {
+            1: "Manufacturing",
+            3: "Researching Technology",
+            4: "Researching Time Efficiency",
+            5: "Researching Material Efficiency", 
+            6: "Copying",
+            7: "Duplicating",
+            8: "Reverse Engineering",
+            9: "Invention",
+            11: "Reaction"
+        }
+        return activities.get(activity_id, f"Activity {activity_id}")
 
     return app
 

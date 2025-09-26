@@ -646,6 +646,31 @@ export default {
       )}<br>`;
       content += `Активных экстракторов: ${planet.active_extractors || 0}<br>`;
 
+      // Добавляем информацию о времени завершения
+      if (planet.next_completion_hours !== undefined) {
+        if (planet.next_completion_hours > 0) {
+          const hours = Math.floor(planet.next_completion_hours);
+          const minutes = Math.floor(
+            (planet.next_completion_hours - hours) * 60
+          );
+          content += `⏰ Следующее завершение: ${hours}ч ${minutes}м<br>`;
+        } else {
+          content += `⏰ Работы завершены<br>`;
+        }
+      }
+
+      if (planet.total_time_remaining_hours !== undefined) {
+        content += `📊 Общее время работ: ${planet.total_time_remaining_hours.toFixed(
+          1
+        )}ч<br>`;
+      }
+
+      if (planet.extractor_expiry_time) {
+        const expiryTime = new Date(planet.extractor_expiry_time);
+        const timeRemaining = this.getTimeRemaining(expiryTime);
+        content += `🕐 Время истечения экстрактора: ${timeRemaining}<br>`;
+      }
+
       if (planet.needs_attention) {
         content += `<span style="color: #ff6b6b;">⚠️ Требует внимания!</span><br>`;
       }
@@ -661,7 +686,21 @@ export default {
             const jobType = job.is_planet_job
               ? "Планетарная добыча"
               : job.product_name;
-            content += `• ${jobType} - ${timeRemaining}<br>`;
+
+            // Используем вычисленное время, если доступно
+            const remainingTime =
+              job.time_remaining_hours !== undefined
+                ? `${job.time_remaining_hours.toFixed(1)}ч`
+                : timeRemaining;
+
+            content += `• ${jobType} - ${remainingTime}`;
+
+            // Добавляем прогресс, если доступен
+            if (job.progress_percentage !== undefined) {
+              content += ` (${job.progress_percentage.toFixed(1)}%)`;
+            }
+
+            content += `<br>`;
 
             // Дополнительная информация для планетарных работ
             if (job.is_planet_job) {
