@@ -93,7 +93,9 @@ export default {
     selectedCharacterId: null,
     currentSection: "characters", // Текущий активный раздел
     apiBaseUrl:
-      process.env.NODE_ENV === "development" ? "http://localhost:5000" : "",
+      process.env.NODE_ENV === "development"
+        ? "http://localhost:5000"
+        : "https://eve-profitmaster.onrender.com",
     navigationItems: [
       {
         key: "characters",
