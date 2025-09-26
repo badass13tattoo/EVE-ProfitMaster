@@ -126,7 +126,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 7px 15px 5px; /* Увеличиваем нижний padding на 2px (3->5) */
+  padding: 7px 15px 7px; /* Увеличиваем нижний padding еще на 2px (5->7) */
   background-color: #20232a;
   position: sticky;
   top: 0;
@@ -290,7 +290,7 @@ export default {
 /* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
   .panel-header-controls {
-    padding: 2px 10px 2px; /* Увеличиваем нижний padding на 2px (0->2) */
+    padding: 2px 10px 4px; /* Увеличиваем нижний padding еще на 2px (2->4) */
     margin: -20px -15px 15px;
   }
 
@@ -310,7 +310,7 @@ export default {
 
 @media (max-width: 480px) {
   .panel-header-controls {
-    padding: 0px 8px 2px; /* Увеличиваем нижний padding на 2px (0->2) */
+    padding: 0px 8px 4px; /* Увеличиваем нижний padding еще на 2px (2->4) */
     margin: -20px -15px 12px;
   }
 

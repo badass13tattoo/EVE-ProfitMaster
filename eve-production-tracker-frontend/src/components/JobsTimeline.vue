@@ -45,6 +45,9 @@
             v-for="(char, index) in characters"
             :key="`border-${char.character_id}`"
             class="character-border-line"
+            :class="{
+              'active-character': selectedCharacterId === char.character_id,
+            }"
             :style="getCharacterBorderStyle(char.character_id, index)"
           ></div>
 
@@ -531,7 +534,7 @@ export default {
     },
 
     getCharacterBorderStyle(characterId, index) {
-      // Вычисляем позицию бордерлайна на основе высоты предыдущих персонажей
+      // Вычисляем позицию верхней границы таймлайна персонажа
       let topPosition = 10; // padding-top контейнера
 
       for (let i = 0; i < index; i++) {
@@ -565,18 +568,19 @@ export default {
         characterHeight = 0; // Свернутый персонаж
       }
 
-      // Позиционируем линию в конце текущего персонажа
-      topPosition += characterHeight;
-
+      // Создаем две линии: верхнюю и нижнюю границы таймлайна персонажа
       return {
         position: "absolute",
         top: `${topPosition}px`,
         left: "0",
         right: "0",
-        height: "1px",
-        backgroundColor: "#3c414d",
-        zIndex: 10,
+        height: `${characterHeight}px`,
+        borderTop: "2px solid #61afef", // Верхняя граница - синяя
+        borderBottom: "2px solid #61afef", // Нижняя граница - синяя
+        backgroundColor: "rgba(97, 175, 239, 0.05)", // Легкий синий фон
+        zIndex: 5,
         pointerEvents: "none",
+        boxSizing: "border-box",
       };
     },
     handleScroll(event) {
@@ -1349,7 +1353,7 @@ export default {
 .timeline-controls {
   padding: 10px 20px;
   background-color: #20232a;
-  border-bottom: 1px solid #3c414d;
+  /* border-bottom: 1px solid #3c414d; */ /* Убираем горизонтальную линию */
   flex-shrink: 0;
   text-align: right;
   position: sticky;
@@ -1409,7 +1413,7 @@ export default {
   background-color: #282c34;
   z-index: 2;
   height: 20px;
-  border-bottom: 1px solid #444;
+  /* border-bottom: 1px solid #444; */ /* Убираем горизонтальную линию */
   top: 0px;
   width: 100%;
 }
@@ -1464,20 +1468,31 @@ export default {
   border: none;
 }
 
-/* Бордерлайны для разделения персонажей */
+/* Бордерлайны для обозначения границ таймлайнов персонажей */
 .character-border-line {
   position: absolute;
   left: 0;
   right: 0;
-  height: 1px;
-  background-color: #3c414d;
-  z-index: 10;
+  border-top: 2px solid #61afef;
+  border-bottom: 2px solid #61afef;
+  background-color: rgba(97, 175, 239, 0.05);
+  z-index: 5;
   pointer-events: none;
-  opacity: 0.7;
+  box-sizing: border-box;
+  opacity: 0.8;
 }
 
 .character-border-line:first-child {
-  display: none; /* Скрываем первую линию, так как она будет в самом верху */
+  display: block; /* Показываем первую линию */
+}
+
+/* Стили для активного персонажа */
+.character-border-line.active-character {
+  border-top: 3px solid #c678dd;
+  border-bottom: 3px solid #c678dd;
+  background-color: rgba(198, 120, 221, 0.1);
+  opacity: 1;
+  box-shadow: 0 0 10px rgba(198, 120, 221, 0.3);
 }
 .job-lanes-container {
   padding: 15px 0;
@@ -1706,7 +1721,7 @@ export default {
 .planets-lane {
   position: relative;
   margin-bottom: 4px;
-  border-bottom: 1px solid #3c414d;
+  /* border-bottom: 1px solid #3c414d; */ /* Убираем горизонтальную линию */
   padding-bottom: 2px;
 }
 
@@ -1779,7 +1794,7 @@ export default {
 .industry-jobs-lane {
   position: relative;
   margin-bottom: 4px;
-  border-bottom: 1px solid #3c414d;
+  /* border-bottom: 1px solid #3c414d; */ /* Убираем горизонтальную линию */
   padding-bottom: 2px;
 }
 
