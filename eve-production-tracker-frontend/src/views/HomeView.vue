@@ -107,10 +107,9 @@ export default {
     lastActivityTime: Date.now(),
     isWindowActive: true,
     updateTimeout: null,
-    apiBaseUrl:
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:5000"
-        : "https://eve-profitmaster.onrender.com",
+    apiBaseUrl: "http://localhost:5000", // Используем локальный сервер
+    fallbackApiUrl: "https://eve-profitmaster.onrender.com", // Fallback URL
+    _cachedApiUrl: null, // Кэшированный рабочий API URL
     navigationItems: [
       {
         key: "characters",
@@ -243,9 +242,13 @@ export default {
       this.loading = true;
       console.log("Starting loadRealData...");
       try {
+        // Получаем рабочий API URL
+        const workingApiUrl = await this.getWorkingApiUrl();
+        console.log("Используем API:", workingApiUrl);
+
         // Загружаем персонажей
         const charactersResponse = await fetch(
-          `${this.apiBaseUrl}/get_characters`
+          `${workingApiUrl}/get_characters`
         );
         if (charactersResponse.ok) {
           this.characters = await charactersResponse.json();
@@ -255,7 +258,7 @@ export default {
         this.activities = {};
         for (const character of this.characters) {
           const detailsResponse = await fetch(
-            `${this.apiBaseUrl}/get_character_details/${character.character_id}`
+            `${workingApiUrl}/get_character_details/${character.character_id}`
           );
           if (detailsResponse.ok) {
             this.activities[character.character_id] =
@@ -281,7 +284,7 @@ export default {
         }
 
         // Загружаем работы
-        const jobsResponse = await fetch(`${this.apiBaseUrl}/get_jobs`);
+        const jobsResponse = await fetch(`${workingApiUrl}/get_jobs`);
         if (jobsResponse.ok) {
           this.jobs = await jobsResponse.json();
           console.log("Loaded jobs data:", this.jobs);
@@ -376,9 +379,12 @@ export default {
     async updateDataInBackground() {
       console.log("Запускаем фоновое обновление данных...");
       try {
+        // Получаем рабочий API URL
+        const workingApiUrl = await this.getWorkingApiUrl();
+
         // Загружаем персонажей
         const charactersResponse = await fetch(
-          `${this.apiBaseUrl}/get_characters`
+          `${workingApiUrl}/get_characters`
         );
         if (charactersResponse.ok) {
           const newCharacters = await charactersResponse.json();
@@ -395,7 +401,7 @@ export default {
         // Загружаем активности для каждого персонажа
         for (const character of this.characters) {
           const detailsResponse = await fetch(
-            `${this.apiBaseUrl}/get_character_details/${character.character_id}`
+            `${workingApiUrl}/get_character_details/${character.character_id}`
           );
           if (detailsResponse.ok) {
             const newActivity = await detailsResponse.json();
@@ -414,7 +420,7 @@ export default {
         }
 
         // Загружаем работы
-        const jobsResponse = await fetch(`${this.apiBaseUrl}/get_jobs`);
+        const jobsResponse = await fetch(`${workingApiUrl}/get_jobs`);
         if (jobsResponse.ok) {
           const newJobs = await jobsResponse.json();
 
@@ -429,7 +435,7 @@ export default {
         for (const character of this.characters) {
           try {
             const planetsResponse = await fetch(
-              `${this.apiBaseUrl}/get_character_planets/${character.character_id}`
+              `${workingApiUrl}/get_character_planets/${character.character_id}`
             );
             if (planetsResponse.ok) {
               const newPlanets = await planetsResponse.json();
@@ -601,6 +607,67 @@ export default {
         dataCache.clearCache();
         alert("Кэш очищен");
       }
+    },
+
+    // Проверка доступности API с fallback
+    async checkApiAvailability() {
+      try {
+        // Сначала пробуем основной URL
+        const response = await fetch(`${this.apiBaseUrl}/get_characters`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          // Добавляем timeout
+          signal: AbortSignal.timeout(5000),
+        });
+
+        if (response.ok) {
+          console.log("Основной API доступен:", this.apiBaseUrl);
+          return this.apiBaseUrl;
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (error) {
+        console.warn(
+          "Основной API недоступен, пробуем fallback:",
+          error.message
+        );
+
+        try {
+          // Пробуем fallback URL
+          const response = await fetch(
+            `${this.fallbackApiUrl}/get_characters`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              signal: AbortSignal.timeout(10000),
+            }
+          );
+
+          if (response.ok) {
+            console.log("Fallback API доступен:", this.fallbackApiUrl);
+            return this.fallbackApiUrl;
+          } else {
+            throw new Error(`HTTP ${response.status}`);
+          }
+        } catch (fallbackError) {
+          console.error("Оба API недоступны:", fallbackError.message);
+          throw new Error(
+            "Сервер недоступен. Проверьте подключение к интернету и запущен ли локальный сервер."
+          );
+        }
+      }
+    },
+
+    // Получение рабочего API URL (с кэшированием)
+    async getWorkingApiUrl() {
+      if (!this._cachedApiUrl) {
+        this._cachedApiUrl = await this.checkApiAvailability();
+      }
+      return this._cachedApiUrl;
     },
 
     // Автоматическое обновление данных
@@ -800,7 +867,7 @@ html {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
-  padding-top: 20px
+  padding-top: 20px;
   overflow: hidden;
   background-color: #282c34;
 }
@@ -865,7 +932,7 @@ html {
 
 .character-panel-column {
   flex-shrink: 0;
-  padding-bottom: 20px
+  padding-bottom: 20px;
 }
 
 .timeline-column {
