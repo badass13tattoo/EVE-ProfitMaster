@@ -272,6 +272,112 @@ export default {
         alert("Ошибка удаления персонажа");
       }
     },
+
+    // Загрузка дополнительных данных для персонажа
+    async loadCharacterDetails(characterId) {
+      try {
+        // Загружаем навыки
+        const skillsResponse = await fetch(
+          `${this.apiBaseUrl}/get_character_skills/${characterId}`
+        );
+        if (skillsResponse.ok) {
+          const skills = await skillsResponse.json();
+          console.log(`Skills for character ${characterId}:`, skills);
+        }
+
+        // Загружаем блюпринты
+        const blueprintsResponse = await fetch(
+          `${this.apiBaseUrl}/get_character_blueprints/${characterId}`
+        );
+        if (blueprintsResponse.ok) {
+          const blueprints = await blueprintsResponse.json();
+          console.log(`Blueprints for character ${characterId}:`, blueprints);
+        }
+
+        // Загружаем портрет
+        const portraitResponse = await fetch(
+          `${this.apiBaseUrl}/get_character_portrait/${characterId}`
+        );
+        if (portraitResponse.ok) {
+          const portrait = await portraitResponse.json();
+          console.log(`Portrait for character ${characterId}:`, portrait);
+        }
+      } catch (error) {
+        console.error(
+          `Error loading details for character ${characterId}:`,
+          error
+        );
+      }
+    },
+
+    // Загрузка информации о типе продукта
+    async loadTypeInfo(typeId) {
+      try {
+        const response = await fetch(
+          `${this.apiBaseUrl}/get_type_info/${typeId}`
+        );
+        if (response.ok) {
+          const typeInfo = await response.json();
+          console.log(`Type info for ${typeId}:`, typeInfo);
+          return typeInfo;
+        }
+      } catch (error) {
+        console.error(`Error loading type info for ${typeId}:`, error);
+      }
+      return null;
+    },
+
+    // Загрузка информации о локации
+    async loadLocationInfo(locationId) {
+      try {
+        const response = await fetch(
+          `${this.apiBaseUrl}/get_location_info/${locationId}`
+        );
+        if (response.ok) {
+          const locationInfo = await response.json();
+          console.log(`Location info for ${locationId}:`, locationInfo);
+          return locationInfo;
+        }
+      } catch (error) {
+        console.error(`Error loading location info for ${locationId}:`, error);
+      }
+      return null;
+    },
+
+    // Очистка базы данных
+    async resetDatabase() {
+      if (
+        confirm(
+          "Вы уверены, что хотите очистить базу данных? Все персонажи будут удалены."
+        )
+      ) {
+        try {
+          const response = await fetch(`${this.apiBaseUrl}/reset_database`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            alert(result.message);
+            // Очищаем локальные данные
+            this.characters = [];
+            this.activities = {};
+            this.jobs = {};
+            this.isLoggedIn = false;
+            this.selectedCharacterId = null;
+          } else {
+            const error = await response.json();
+            alert(`Ошибка: ${error.error}`);
+          }
+        } catch (error) {
+          console.error("Ошибка очистки базы данных:", error);
+          alert("Ошибка подключения к серверу.");
+        }
+      }
+    },
   },
 
   // Проверяем авторизацию при загрузке компонента
@@ -303,112 +409,6 @@ export default {
     } catch (error) {
       // Игнорируем ошибки при первом запуске - пользователь не авторизован
       console.log("Пользователь не авторизован или сервер недоступен");
-    }
-  },
-
-  // Загрузка дополнительных данных для персонажа
-  async loadCharacterDetails(characterId) {
-    try {
-      // Загружаем навыки
-      const skillsResponse = await fetch(
-        `${this.apiBaseUrl}/get_character_skills/${characterId}`
-      );
-      if (skillsResponse.ok) {
-        const skills = await skillsResponse.json();
-        console.log(`Skills for character ${characterId}:`, skills);
-      }
-
-      // Загружаем блюпринты
-      const blueprintsResponse = await fetch(
-        `${this.apiBaseUrl}/get_character_blueprints/${characterId}`
-      );
-      if (blueprintsResponse.ok) {
-        const blueprints = await blueprintsResponse.json();
-        console.log(`Blueprints for character ${characterId}:`, blueprints);
-      }
-
-      // Загружаем портрет
-      const portraitResponse = await fetch(
-        `${this.apiBaseUrl}/get_character_portrait/${characterId}`
-      );
-      if (portraitResponse.ok) {
-        const portrait = await portraitResponse.json();
-        console.log(`Portrait for character ${characterId}:`, portrait);
-      }
-    } catch (error) {
-      console.error(
-        `Error loading details for character ${characterId}:`,
-        error
-      );
-    }
-  },
-
-  // Загрузка информации о типе продукта
-  async loadTypeInfo(typeId) {
-    try {
-      const response = await fetch(
-        `${this.apiBaseUrl}/get_type_info/${typeId}`
-      );
-      if (response.ok) {
-        const typeInfo = await response.json();
-        console.log(`Type info for ${typeId}:`, typeInfo);
-        return typeInfo;
-      }
-    } catch (error) {
-      console.error(`Error loading type info for ${typeId}:`, error);
-    }
-    return null;
-  },
-
-  // Загрузка информации о локации
-  async loadLocationInfo(locationId) {
-    try {
-      const response = await fetch(
-        `${this.apiBaseUrl}/get_location_info/${locationId}`
-      );
-      if (response.ok) {
-        const locationInfo = await response.json();
-        console.log(`Location info for ${locationId}:`, locationInfo);
-        return locationInfo;
-      }
-    } catch (error) {
-      console.error(`Error loading location info for ${locationId}:`, error);
-    }
-    return null;
-  },
-
-  // Очистка базы данных
-  async resetDatabase() {
-    if (
-      confirm(
-        "Вы уверены, что хотите очистить базу данных? Все персонажи будут удалены."
-      )
-    ) {
-      try {
-        const response = await fetch(`${this.apiBaseUrl}/reset_database`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          alert(result.message);
-          // Очищаем локальные данные
-          this.characters = [];
-          this.activities = {};
-          this.jobs = {};
-          this.isLoggedIn = false;
-          this.selectedCharacterId = null;
-        } else {
-          const error = await response.json();
-          alert(`Ошибка: ${error.error}`);
-        }
-      } catch (error) {
-        console.error("Ошибка очистки базы данных:", error);
-        alert("Ошибка подключения к серверу.");
-      }
     }
   },
 };
