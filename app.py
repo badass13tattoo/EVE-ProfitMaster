@@ -1,7 +1,7 @@
 import os
 import requests
 import base64
-from flask import Flask, jsonify, request, redirect, session, render_template
+from flask import Flask, jsonify, request, redirect, session, render_template, make_response
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -41,7 +41,20 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)
-    cors.init_app(app)
+    
+    # Настройка CORS для разрешения запросов с фронтенда
+    cors.init_app(app, resources={
+        r"/*": {
+            "origins": [
+                "https://eve-profitmaster-1.onrender.com",
+                "http://localhost:8080",
+                "http://localhost:3000"
+            ],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
 
     def get_cached_type_info(type_id):
         """Получает информацию о типе с кэшированием"""
@@ -149,6 +162,24 @@ def create_app():
     @app.route('/')
     def home(): return "Бэкенд EVE Profit Master работает!"
     
+    # Обработка CORS preflight запросов
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = make_response()
+            response.headers.add("Access-Control-Allow-Origin", "*")
+            response.headers.add('Access-Control-Allow-Headers', "*")
+            response.headers.add('Access-Control-Allow-Methods', "*")
+            return response
+    
+    # Добавляем CORS заголовки ко всем ответам
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+    
     @app.route('/health')
     def health():
         try:
@@ -162,14 +193,24 @@ def create_app():
                     'EVE_CLIENT_ID': bool(os.environ.get('EVE_CLIENT_ID')),
                     'EVE_SECRET_KEY': bool(os.environ.get('EVE_SECRET_KEY')),
                     'DATABASE_URL': bool(os.environ.get('DATABASE_URL'))
-                }
+                },
+                'cors_enabled': True
             })
         except Exception as e:
             return jsonify({
                 'status': 'unhealthy',
                 'database_connected': False,
-                'error': str(e)
+                'error': str(e),
+                'cors_enabled': True
             }), 500
+    
+    @app.route('/cors-test')
+    def cors_test():
+        return jsonify({
+            'message': 'CORS is working!',
+            'timestamp': datetime.datetime.now().isoformat(),
+            'origin': request.headers.get('Origin', 'Unknown')
+        })
 
     @app.route('/login')
     def login():
@@ -813,5 +854,17 @@ def create_app():
     return app
 
 app = create_app()
-with app.app_context(): db.create_all()
-if __name__ == '__main__': app.run(debug=True)
+
+# Инициализация базы данных
+try:
+    with app.app_context(): 
+        db.create_all()
+        print("Database tables created successfully")
+except Exception as e:
+    print(f"Error creating database tables: {e}")
+
+# Запуск приложения
+if __name__ == '__main__': 
+    print("Starting EVE Profit Master backend...")
+    print(f"Environment: {os.environ.get('FLASK_ENV', 'production')}")
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
