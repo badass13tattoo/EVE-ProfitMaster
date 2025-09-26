@@ -112,6 +112,7 @@ export default {
   border: 2px solid #3c414d;
   cursor: pointer;
   transition: all 0.2s;
+  height: 120px;
   min-height: 120px;
   max-height: 120px;
   box-sizing: border-box;
@@ -143,7 +144,7 @@ export default {
 }
 .character-name {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: bold;
   color: #e0e0e0;
 }
 .remove-char-btn {
@@ -154,13 +155,17 @@ export default {
   color: #aaa;
   border: none;
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  font-size: 14px;
-  line-height: 20px;
+  width: 22px;
+  height: 22px;
+  font-size: 18px;
+  line-height: 22px;
   cursor: pointer;
   opacity: 0.3;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 .character-card:hover .remove-char-btn {
   opacity: 1;

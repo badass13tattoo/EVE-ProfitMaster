@@ -49,6 +49,7 @@
             :key="char.character_id"
             class="character-row-group"
             :class="getRowClass(char.character_id)"
+            :style="getCharacterRowStyle(char.character_id)"
           >
             <div
               v-if="
@@ -62,7 +63,26 @@
                 :key="job.job_id"
                 class="expanded-job-item"
               >
-                <span class="job-name">{{ job.product_name }}</span>
+                <div
+                  class="job-bar-focus-view"
+                  @mouseover="showTooltip(job, $event)"
+                  @mouseleave="hideTooltip"
+                >
+                  <div
+                    class="job-bar-fill"
+                    :style="{
+                      width: getJobStyle(job).width,
+                      transform: getJobStyle(job).transform,
+                      backgroundColor: getJobColor(job.activity_id),
+                    }"
+                  >
+                    <span
+                      class="job-name-in-bar"
+                      v-if="parseInt(getJobStyle(job).width) > 100"
+                      >{{ job.product_name }}</span
+                    >
+                  </div>
+                </div>
                 <span class="job-time">{{
                   getTimeRemaining(job.end_date)
                 }}</span>
@@ -79,6 +99,7 @@
                     v-for="job in lane"
                     :key="job.job_id"
                     class="job-bar"
+                    :class="{ 'has-overlap': job.hasOverlap }"
                     :style="getJobStyle(job)"
                     @mouseover="showTooltip(job, $event)"
                     @mouseleave="hideTooltip"
@@ -118,52 +139,89 @@ export default {
     containerWidth: 1000,
   }),
   computed: {
-    pixelsPerHour() {
-      return { day: 120, week: 30, month: 8 }[this.scaleMode];
+    totalDurationMs() {
+      const hoursToMs = (h) => h * 3600 * 1000;
+      switch (this.scaleMode) {
+        case "day":
+          return hoursToMs(24);
+        case "week":
+          return hoursToMs(24 * 7);
+        case "month": {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = now.getMonth();
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+          return hoursToMs(24 * daysInMonth);
+        }
+        default:
+          return hoursToMs(24 * 7);
+      }
     },
-    timelineDurationMs() {
-      const allJobs = Object.values(this.jobs).flat();
-      if (allJobs.length === 0) return 24 * 3600e3;
-      const maxEnd = Math.max(
-        ...allJobs.map((j) => new Date(j.end_date).getTime())
-      );
-      return Math.max(0, maxEnd - this.now.getTime());
+    pixelsPerHour() {
+      if (!this.containerWidth || !this.totalDurationMs) return 1;
+      const availableWidth = this.containerWidth;
+      const totalHours = this.totalDurationMs / (3600 * 1000);
+      return availableWidth / totalHours;
     },
     timelineWidth() {
-      return (
-        (this.timelineDurationMs / 3600e3) * this.pixelsPerHour +
-        this.containerWidth
-      );
+      return this.containerWidth;
     },
     timeScale() {
       const scale = [];
-      const units = {
-        day: {
-          step: 3600e3 * 3,
-          format: (d) => `${String(d.getHours()).padStart(2, "0")}:00`,
-        },
-        week: {
-          step: 3600e3 * 24,
-          format: (d) =>
-            d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" }),
-        },
-        month: {
-          step: 3600e3 * 24 * 7,
-          format: (d) =>
-            d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" }),
-        },
-      };
-      const current = units[this.scaleMode];
-      for (
-        let i = 0;
-        i * current.step < this.timelineDurationMs + 48 * 3600e3;
-        i++
-      ) {
-        const date = new Date(this.now.getTime() + i * current.step);
-        const left =
-          ((date.getTime() - this.now.getTime()) / 3600e3) * this.pixelsPerHour;
-        if (left > 8000) break;
-        scale.push({ label: current.format(date), left });
+      const viewStart = this.now;
+      const pph = this.pixelsPerHour;
+      if (!pph || pph <= 0) return [];
+
+      let timeCursor, stepMs, formatFn, labelStep;
+
+      switch (this.scaleMode) {
+        case "day":
+          timeCursor = new Date(viewStart);
+          timeCursor.setMinutes(0, 0, 0);
+          stepMs = 1 * 3600e3;
+          labelStep = this.containerWidth < 700 ? 3 : 1;
+          formatFn = (d) => `${String(d.getHours()).padStart(2, "0")}:00`;
+          break;
+        case "week":
+          timeCursor = new Date(viewStart);
+          timeCursor.setHours(0, 0, 0, 0);
+          stepMs = 24 * 3600e3;
+          labelStep = 1;
+          formatFn = (d) =>
+            d.toLocaleDateString("ru-RU", {
+              day: "numeric",
+              month: "short",
+            });
+          break;
+        default: // month
+          timeCursor = new Date(viewStart);
+          timeCursor.setHours(0, 0, 0, 0);
+          stepMs = 24 * 3600e3;
+          labelStep =
+            this.containerWidth < 700
+              ? 7
+              : this.containerWidth < 1200
+              ? 2
+              : 1;
+          formatFn = (d) => d.getDate();
+          break;
+      }
+
+      const viewEnd = new Date(viewStart.getTime() + this.totalDurationMs);
+      let count = 0;
+      while (timeCursor < viewEnd) {
+        if (timeCursor >= viewStart) {
+          if (count % labelStep === 0) {
+            const offsetMs = timeCursor.getTime() - viewStart.getTime();
+            scale.push({
+              timestamp: timeCursor.getTime(),
+              label: formatFn(timeCursor),
+              left: (offsetMs / 3600e3) * pph,
+            });
+          }
+        }
+        timeCursor.setTime(timeCursor.getTime() + stepMs);
+        count++;
       }
       return scale;
     },
@@ -188,10 +246,36 @@ export default {
         "--tooltip-bg": this.getJobColor(this.tooltip.job.activity_id),
       };
     },
+    focusRowHeight() {
+      if (!this.selectedCharacterId) return 0;
+      const jobsCount = this.jobs[this.selectedCharacterId]?.length || 0;
+      return jobsCount * 35 + 40;
+    },
   },
   methods: {
+    getCharacterRowStyle(characterId) {
+      if (this.selectedCharacterId === characterId) {
+        return {
+          height: `${this.focusRowHeight}px`,
+          minHeight: `${this.focusRowHeight}px`,
+        };
+      }
+      if (this.selectedCharacterId && this.selectedCharacterId !== characterId) {
+        return {
+          height: "0px",
+          minHeight: "0px",
+          padding: "0",
+          border: "none",
+        };
+      }
+      return {
+        height: "120px",
+        minHeight: "120px",
+        maxHeight: "120px",
+      };
+    },
     getRowClass(characterId) {
-      if (!this.selectedCharacterId) return {};
+      if (!this.selectedCharacterId) return "";
       return {
         "is-selected": this.selectedCharacterId === characterId,
         "is-hidden": this.selectedCharacterId !== characterId,
@@ -202,24 +286,62 @@ export default {
     },
     layoutJobs(jobs) {
       if (!jobs?.length) return [];
+
+      const sortedJobs = [...jobs]
+        .map((j) => ({ ...j, hasOverlap: false }))
+        .sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+
       const lanes = [];
-      const sortedJobs = [...jobs].sort(
-        (a, b) => new Date(a.start_date) - new Date(b.start_date)
-      );
       for (const job of sortedJobs) {
         if (new Date(job.end_date) < this.now) continue;
+
         let placed = false;
         for (const lane of lanes) {
-          if (
-            new Date(lane[lane.length - 1].end_date) <= new Date(job.start_date)
-          ) {
+          const lastJobInLane = lane[lane.length - 1];
+          if (new Date(lastJobInLane.end_date) <= new Date(job.start_date)) {
             lane.push(job);
             placed = true;
             break;
           }
         }
-        if (!placed) lanes.push([job]);
+        if (!placed) {
+          lanes.push([job]);
+        }
       }
+
+      if (this.selectedCharacterId) {
+        return lanes;
+      }
+
+      const MAX_LANES = 10;
+      if (lanes.length > MAX_LANES) {
+        const newLanes = lanes.slice(0, MAX_LANES);
+        for (let i = MAX_LANES; i < lanes.length; i++) {
+          const targetLaneIndex = i % MAX_LANES;
+          newLanes[targetLaneIndex].push(...lanes[i]);
+          newLanes[targetLaneIndex].sort(
+            (a, b) => new Date(a.start_date) - new Date(b.start_date)
+          );
+        }
+
+        for (const lane of newLanes) {
+          for (let i = 0; i < lane.length; i++) {
+            for (let j = i + 1; j < lane.length; j++) {
+              const job1 = lane[i];
+              const job2 = lane[j];
+              if (
+                new Date(job1.start_date) < new Date(job2.end_date) &&
+                new Date(job2.start_date) < new Date(job1.end_date)
+              ) {
+                job1.hasOverlap = true;
+                job2.hasOverlap = true;
+              }
+            }
+          }
+        }
+        return newLanes;
+      }
+
       return lanes;
     },
     getJobStyle(job) {
@@ -283,8 +405,8 @@ export default {
       this.now = new Date();
     },
     updateContainerWidth() {
-      if (this.$refs.container)
-        this.containerWidth = this.$refs.container.clientWidth;
+      if (this.$refs.timelineScrollWrapper)
+        this.containerWidth = this.$refs.timelineScrollWrapper.clientWidth;
     },
     setScrollTop(scrollTop) {
       this.$refs.timelineScrollWrapper.scrollTop = scrollTop;
@@ -292,8 +414,10 @@ export default {
   },
   mounted() {
     this.interval = setInterval(this.updateTime, 1000);
-    this.updateContainerWidth();
-    window.addEventListener("resize", this.updateContainerWidth);
+    this.$nextTick(() => {
+      this.updateContainerWidth();
+      window.addEventListener("resize", this.updateContainerWidth);
+    });
   },
   beforeUnmount() {
     clearInterval(this.interval);
@@ -333,6 +457,8 @@ export default {
 .timeline-scroll-wrapper {
   flex-grow: 1;
   overflow: auto;
+  padding-left: 20px;
+  box-sizing: border-box;
 }
 .timeline-scroll-wrapper.is-locked {
   overflow-y: hidden;
@@ -380,12 +506,16 @@ export default {
   justify-content: center;
 }
 .character-row-group.is-selected {
-  min-height: 250px;
   background-color: #32363e;
+  overflow: hidden;
 }
 .character-row-group.is-hidden {
-  min-height: 50px;
+  height: 0px;
+  min-height: 0px !important;
   overflow: hidden;
+  padding-top: 0;
+  padding-bottom: 0;
+  border: none;
 }
 .job-lanes-container {
   padding: 15px 0;
@@ -395,18 +525,38 @@ export default {
   color: #e0e0e0;
   height: 100%;
   overflow-y: auto;
+  position: relative;
 }
 .expanded-job-item {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 5px;
+}
+.job-bar-focus-view {
+  position: relative;
+  width: 100%;
+  height: 30px;
+  background-color: #20232a;
+  border-radius: 4px;
+}
+.job-bar-focus-view .job-bar-fill {
+  position: absolute;
+  height: 100%;
+  border-radius: 4px;
   display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid #4a4f58;
+  align-items: center;
+  padding: 0 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
 }
-.expanded-job-item:last-child {
-  border-bottom: none;
-}
-.job-name {
+.job-name-in-bar {
+  color: #fff;
+  font-size: 14px;
   font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 .job-time {
   font-family: monospace;
@@ -414,14 +564,19 @@ export default {
 }
 .job-lane {
   position: relative;
-  height: 8px;
+  height: 12px;
   margin-bottom: 2px;
 }
 .job-bar {
   position: absolute;
-  height: 7px;
-  border-radius: 2px;
+  height: 10px;
+  border-radius: 3px;
   cursor: pointer;
+  transition: all 0.1s ease-in-out;
+}
+.job-bar.has-overlap {
+  box-shadow: 0 0 8px 1px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 .job-bar-fill {
   height: 100%;
