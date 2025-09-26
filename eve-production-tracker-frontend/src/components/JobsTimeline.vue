@@ -28,15 +28,15 @@
         class="timeline-wrapper"
         :style="{ width: timelineWidth + 'px' }"
       >
-        <div class="timeline-wrapper" :style="{ width: timelineWidth + 'px' }">
-          <div class="time-headers">...</div>
-          <div class="current-time-line"></div>
+        <div class="time-headers"></div>
+        <div class="current-time-line"></div>
 
-          <div v-if="isLoading" class="loading-indicator">Data loading...</div>
-          <div v-else-if="!hasJobs" class="no-jobs-placeholder">No jobs.</div>
+        <div v-if="isLoading" class="loading-indicator">Data loading...</div>
 
-          <div v-else class="character-rows-container"></div>
+        <div v-else-if="!hasJobs" class="no-jobs-placeholder">
+          No jobs to display.
         </div>
+        <div v-else class="character-rows-container"></div>
         <div class="current-time-line"></div>
         <div class="character-rows-container">
           <!-- Бордерлайны для разделения персонажей -->
@@ -1410,16 +1410,17 @@ export default {
 }
 .timeline-wrapper {
   position: relative;
-  /* Ширина задается через :style="{ width: timelineWidth + 'px' }" */
-  min-height: 100%;
-  box-sizing: border-box;
-  /* Убираем gap, так как он управляется через JavaScript */
+  display: flex;
+  flex-direction: column;
+  min-height: 100%; /* Гарантирует минимальную высоту */
+  flex-grow: 1; /* Если используется Flexbox в .timeline-scroll-wrapper */
 }
 .time-headers {
   position: sticky;
   top: 0;
   background-color: #282c34;
   z-index: 0;
+  flex-shrink: 0;
   height: 40px;
   width: 100%;
   /* Убедитесь, что контейнер заголовков занимает всю ширину и является контекстом для своих элементов */
@@ -1721,6 +1722,7 @@ export default {
 }
 .loading-indicator,
 .no-jobs-placeholder {
+  flex-grow: 1;
   text-align: center;
   padding-top: 50px;
   font-size: 18px;
