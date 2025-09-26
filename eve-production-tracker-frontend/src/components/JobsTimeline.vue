@@ -535,39 +535,46 @@ export default {
       // Стандартный вид: разрешаем динамический рост для показа всех работ
       return {
         height: "auto", // ИЗМЕНЕНИЕ: Разрешаем динамический рост
-        minHeight: `${this.TOTAL_ROW_HEIGHT}px`, // Сохраняем минимальную высоту для выравнивания
-        // maxHeight удален для разрешения роста
-        margin: "0", // Убеждаемся, что нет лишних маржинов
+        minHeight: `${this.TOTAL_ROW_HEIGHT}px`, // Сохраняем минимальную высоту (135px) для выравнивания
+        margin: "0",
       };
     },
 
     getCharacterBorderStyle(characterId, index) {
+      const BORDER_STYLE = "1px solid #3c414d";
       // Вычисляем позицию верхней границы таймлайна персонажа
       let topPosition = 10; // padding-top контейнера
 
       for (let i = 0; i < index; i++) {
         const char = this.characters[i];
+        let charHeight;
+
         if (this.selectedCharacterId === char.character_id) {
-          topPosition += this.focusRowHeight;
+          // 1. В режиме фокуса: используем рассчитанную высоту фокуса
+          charHeight = this.focusRowHeight;
         } else if (
           this.selectedCharacterId &&
           this.selectedCharacterId !== char.character_id
         ) {
-          // Свернутый персонаж - не добавляем высоту
-          continue;
+          // 2. В режиме скрытия: высота 0
+          charHeight = 0;
         } else {
-          return {
-            height: "120px",
-            minHeight: "120px",
-            maxHeight: "120px",
-            margin: "0",
-            borderBottom: "none",
-          };
+          // 3. В стандартном режиме: используем фактическую высоту строки.
+          //    Поскольку RowStyle теперь "auto", для расчета границы используем минимальную/стандартную высоту.
+          //    Синхронизируем с минимальной высотой карточки (120px) + gap (15px) = 135px
+          charHeight = this.CARD_HEIGHT + this.GAP_HEIGHT;
+          // Если вам нужно, чтобы граница учитывала фактический рост,
+          // вам придется использовать $refs для замера высоты уже отрендеренной строки,
+          // что намного сложнее. Мы используем минимальную высоту для стабильности.
         }
+
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Мы должны продолжать цикл, а не возвращать значение!
+        // Существующий код возвращал стиль для ПЕРВОГО же персонажа, если фокуса не было.
+        topPosition += charHeight;
       }
 
       // Определяем высоту текущего персонажа
-      let characterHeight = this.TOTAL_ROW_HEIGHT; // Используем константу
+      let characterHeight = this.CARD_HEIGHT + this.GAP_HEIGHT; // Стандартная высота (135px)
       if (this.selectedCharacterId === characterId) {
         characterHeight = this.focusRowHeight;
       } else if (
@@ -577,19 +584,17 @@ export default {
         characterHeight = 0; // Свернутый персонаж
       }
 
-      // Создаем две линии: верхнюю и нижнюю границы таймлайна персонажа
+      // Возвращаем стили для *текущей* границы, расположенной на topPosition
       return {
         position: "absolute",
-        top: `${topPosition}px`,
+        top: `${topPosition - this.GAP_HEIGHT / 2}px`, // Сдвигаем на половину GAP, чтобы центрировать границу
         left: "0",
         right: "0",
-        height: `${characterHeight}px`,
-        borderTop: "1px solid #3c414d", // Верхняя граница - тонкая серая
-        borderBottom: "1px solid #3c414d", // Нижняя граница - тонкая серая
-        backgroundColor: "rgba(60, 65, 77, 0.05)", // Легкий серый фон
+        height: "1px", // Сама линия границы
+        borderTop: BORDER_STYLE,
+        backgroundColor: "#3c414d",
         zIndex: 5,
         pointerEvents: "none",
-        boxSizing: "border-box",
       };
     },
     handleScroll(event) {
