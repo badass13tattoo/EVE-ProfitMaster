@@ -1,7 +1,7 @@
 <template>
   <div class="character-panel">
     <h2 class="panel-title">Characters</h2>
-    <div class="characters-list">
+    <div class="characters-list" ref="charactersList">
       <div
         v-for="char in characters"
         :key="char.character_id"
@@ -70,10 +70,19 @@
 export default {
   name: "CharacterPanel",
   props: ["characters", "activities", "selectedCharacterId"],
+  inject: ["eventBus"],
   emits: ["add-character", "remove-character", "select-character"],
+  watch: {
+    "eventBus.scroll": "handleExternalScroll",
+  },
   methods: {
     getCharacterPortrait(characterId) {
       return `https://images.evetech.net/characters/${characterId}/portrait?size=128`;
+    },
+    handleExternalScroll(scrollData) {
+      if (scrollData.source === "character-panel") return;
+      const el = this.$refs.charactersList;
+      if (el) el.scrollTop = scrollData.scrollTop;
     },
   },
 };
@@ -86,6 +95,8 @@ export default {
   padding: 20px 15px;
   border-right: 1px solid #3c414d;
   box-sizing: border-box;
+  overflow: hidden;
+  height: 100%;
 }
 .panel-title {
   text-align: center;
@@ -93,11 +104,27 @@ export default {
   margin-bottom: 20px;
   color: #e0e0e0;
   font-weight: 300;
+  position: sticky;
+  top: 0;
+  background-color: #20232a;
+  z-index: 1;
+  padding-top: 20px;
+  padding-bottom: 10px;
+  margin: -20px -15px 20px;
+  padding-left: 15px;
+  padding-right: 15px;
 }
 .characters-list {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  height: calc(100% - 75px);
+  overflow-y: scroll;
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.characters-list::-webkit-scrollbar {
+  display: none;
 }
 .character-card {
   display: flex;

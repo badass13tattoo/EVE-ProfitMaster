@@ -54,6 +54,14 @@
               class="expanded-jobs-view"
             >
               <div
+                v-if="
+                  jobs[char.character_id] && jobs[char.character_id].length > 10
+                "
+                class="focus-jobs-count"
+              >
+                {{ jobs[char.character_id].length }} работ - прокрутка доступна
+              </div>
+              <div
                 v-for="job in jobs[char.character_id]"
                 :key="job.job_id"
                 class="expanded-job-item"
@@ -65,6 +73,7 @@
                 >
                   <div
                     class="job-bar-fill"
+                    :class="{ 'completed-job': isJobCompleted(job) }"
                     :style="{
                       width: getJobStyle(job).width,
                       transform: getJobStyle(job).transform,
@@ -73,13 +82,28 @@
                   >
                     <span
                       class="job-name-in-bar"
-                      v-if="parseInt(getJobStyle(job).width) > 100"
+                      v-if="
+                        parseInt(getJobStyle(job).width) > 100 &&
+                        !isJobCompleted(job)
+                      "
                       >{{ job.product_name }}</span
                     >
+                    <svg
+                      v-if="isJobCompleted(job)"
+                      class="checkmark-icon-expanded"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"
+                        fill="white"
+                      />
+                    </svg>
                   </div>
                 </div>
                 <span class="job-time">{{
-                  getTimeRemaining(job.end_date)
+                  isJobCompleted(job)
+                    ? "Завершено"
+                    : getTimeRemaining(job.end_date)
                 }}</span>
               </div>
             </div>
@@ -94,15 +118,30 @@
                     v-for="job in lane"
                     :key="job.job_id"
                     class="job-bar"
-                    :class="{ 'has-overlap': job.hasOverlap }"
+                    :class="{
+                      'has-overlap': job.hasOverlap,
+                      'completed-job-bar': isJobCompleted(job),
+                    }"
                     :style="getJobStyle(job)"
                     @mouseover="showTooltip(job, $event)"
                     @mouseleave="hideTooltip"
                   >
                     <div
                       class="job-bar-fill"
+                      :class="{ 'completed-job': isJobCompleted(job) }"
                       :style="{ backgroundColor: getJobColor(job.activity_id) }"
-                    ></div>
+                    >
+                      <svg
+                        v-if="isJobCompleted(job)"
+                        class="checkmark-icon"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"
+                          fill="white"
+                        />
+                      </svg>
+                    </div>
                   </div>
                 </div>
               </template>
@@ -125,6 +164,7 @@
 export default {
   name: "JobsTimeline",
   props: ["jobs", "characters", "isLoading", "selectedCharacterId"],
+  inject: ["eventBus"],
   emits: [],
   data: () => ({
     scaleMode: "week",
@@ -133,6 +173,9 @@ export default {
     interval: null,
     containerWidth: 1000,
   }),
+  watch: {
+    "eventBus.scroll": "handleExternalScroll",
+  },
   computed: {
     totalDurationMs() {
       const hoursToMs = (h) => h * 3600 * 1000;
@@ -152,14 +195,37 @@ export default {
           return hoursToMs(24 * 7);
       }
     },
-    pixelsPerHour() {
-      if (!this.containerWidth || !this.totalDurationMs) return 1;
-      const availableWidth = this.containerWidth;
-      const totalHours = this.totalDurationMs / (3600 * 1000);
-      return availableWidth / totalHours;
+    basePixelsPerHour() {
+      switch (this.scaleMode) {
+        case "day":
+          return 80;
+        case "week":
+          return 40;
+        case "month":
+          return 15;
+        default:
+          return 40;
+      }
     },
     timelineWidth() {
-      return this.containerWidth;
+      const totalHours = this.totalDurationMs / (3600 * 1000);
+      if (totalHours <= 0) {
+        return this.containerWidth;
+      }
+
+      const idealWidth = totalHours * this.basePixelsPerHour;
+      const availableWidth = this.containerWidth || 1000;
+
+      // Ограничиваем ширину таймлайна размерами контейнера
+      return Math.min(idealWidth, availableWidth);
+    },
+    pixelsPerHour() {
+      if (!this.totalDurationMs) return 1;
+      const totalHours = this.totalDurationMs / (3600 * 1000);
+      if (totalHours <= 0) {
+        return 1;
+      }
+      return this.timelineWidth / totalHours;
     },
     timeScale() {
       const scale = [];
@@ -240,7 +306,10 @@ export default {
     focusRowHeight() {
       if (!this.selectedCharacterId) return 0;
       const jobsCount = this.jobs[this.selectedCharacterId]?.length || 0;
-      return jobsCount * 35 + 40;
+      const calculatedHeight = jobsCount * 35 + 40;
+      // Ограничиваем максимальную высоту чтобы активировать прокрутку
+      const maxHeight = window.innerHeight * 0.7; // 70% высоты экрана
+      return Math.min(calculatedHeight, maxHeight);
     },
   },
   methods: {
@@ -268,6 +337,20 @@ export default {
         maxHeight: "120px",
       };
     },
+    handleScroll(event) {
+      if (event.target.classList.contains("timeline-scroll-wrapper")) {
+        this.eventBus.scroll = {
+          source: "timeline",
+          scrollTop: event.target.scrollTop,
+        };
+      }
+    },
+    handleExternalScroll(scrollData) {
+      if (scrollData.source === "timeline") return;
+      if (this.$refs.timelineScrollWrapper) {
+        this.$refs.timelineScrollWrapper.scrollTop = scrollData.scrollTop;
+      }
+    },
     getRowClass(characterId) {
       if (!this.selectedCharacterId) return "";
       return {
@@ -286,18 +369,41 @@ export default {
         .sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
 
       const lanes = [];
+
+      // Определяем временные границы видимой области
+      const viewStart = this.now;
+      const viewEnd = new Date(this.now.getTime() + this.totalDurationMs);
+
       for (const job of sortedJobs) {
-        if (new Date(job.end_date) < this.now) continue;
+        // Показываем работы которые:
+        // 1. Еще не завершились (активные)
+        // 2. Завершились недавно и еще видны в области просмотра
+        const jobEndDate = new Date(job.end_date);
+        const jobStartDate = new Date(job.start_date);
+
+        // Пропускаем работы которые завершились слишком давно (за пределами видимой области слева)
+        if (
+          jobEndDate < viewStart &&
+          viewStart - jobEndDate > this.totalDurationMs / 4
+        )
+          continue;
+
+        // Пропускаем работы которые начнутся слишком поздно (за пределами видимой области справа)
+        if (jobStartDate > viewEnd) continue;
 
         let placed = false;
+        // Попробуем найти подходящую линию для работы
         for (const lane of lanes) {
           const lastJobInLane = lane[lane.length - 1];
+          // Проверяем есть ли достаточно места между концом последней работы и началом новой
           if (new Date(lastJobInLane.end_date) <= new Date(job.start_date)) {
             lane.push(job);
             placed = true;
             break;
           }
         }
+
+        // Если не удалось разместить в существующих линиях, создаем новую
         if (!placed) {
           lanes.push([job]);
         }
@@ -307,7 +413,7 @@ export default {
         return lanes;
       }
 
-      const MAX_LANES = 10;
+      const MAX_LANES = 10; // Ограничиваем для включения вертикальной прокрутки
       if (lanes.length > MAX_LANES) {
         const newLanes = lanes.slice(0, MAX_LANES);
         for (let i = MAX_LANES; i < lanes.length; i++) {
@@ -339,17 +445,36 @@ export default {
       return lanes;
     },
     getJobStyle(job) {
+      // Если работа завершена, показываем квадратик в позиции завершения
+      if (this.isJobCompleted(job)) {
+        // Позиция end_date относительно текущего времени (может быть отрицательной)
+        const endOffsetMs =
+          new Date(job.end_date).getTime() - this.now.getTime();
+        const left = (endOffsetMs / 3600e3) * this.pixelsPerHour;
+        return {
+          transform: `translateX(${left}px)`,
+          width: "20px",
+          height: "20px",
+          borderRadius: "4px",
+        };
+      }
+
+      // Для активных работ показываем линию
       const startOffsetMs = Math.max(
         0,
         new Date(job.start_date).getTime() - this.now.getTime()
       );
-      const durationMs =
-        new Date(job.end_date).getTime() - new Date(job.start_date).getTime();
-      const left = (startOffsetMs / 3600e3) * this.pixelsPerHour;
-      const width = (durationMs / 3600e3) * this.pixelsPerHour;
+      const endOffsetMs = new Date(job.end_date).getTime() - this.now.getTime();
+
+      // Если работа уже началась, but not completed, показываем только оставшуюся часть
+      const left =
+        startOffsetMs === 0 ? 0 : (startOffsetMs / 3600e3) * this.pixelsPerHour;
+      const endPosition = (endOffsetMs / 3600e3) * this.pixelsPerHour;
+      const width = Math.max(2, endPosition - left);
+
       return {
         transform: `translateX(${left}px)`,
-        width: `${Math.max(2, width)}px`,
+        width: `${width}px`,
       };
     },
     getJobColor(id) {
@@ -376,6 +501,9 @@ export default {
         }[id] || "Unknown"
       );
     },
+    isJobCompleted(job) {
+      return new Date(job.end_date) <= this.now;
+    },
     getTimeRemaining(endDate) {
       const s = Math.max(0, (new Date(endDate) - this.now) / 1000);
       const d = Math.floor(s / 86400);
@@ -399,8 +527,9 @@ export default {
       this.now = new Date();
     },
     updateContainerWidth() {
-      if (this.$refs.timelineScrollWrapper)
-        this.containerWidth = this.$refs.timelineScrollWrapper.clientWidth;
+      if (this.$el) {
+        this.containerWidth = this.$el.clientWidth;
+      }
     },
   },
   mounted() {
@@ -408,11 +537,13 @@ export default {
     this.$nextTick(() => {
       this.updateContainerWidth();
       window.addEventListener("resize", this.updateContainerWidth);
+      this.$el.addEventListener("scroll", this.handleScroll, true);
     });
   },
   beforeUnmount() {
     clearInterval(this.interval);
     window.removeEventListener("resize", this.updateContainerWidth);
+    this.$el.removeEventListener("scroll", this.handleScroll, true);
   },
 };
 </script>
@@ -422,7 +553,8 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background-color: #282c34;
+  max-width: 100%;
+  width: 100%;
 }
 .timeline-controls {
   padding: 10px 20px;
@@ -430,6 +562,14 @@ export default {
   border-bottom: 1px solid #3c414d;
   flex-shrink: 0;
   text-align: right;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 51px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 .timeline-controls button {
   background-color: #3a3f4b;
@@ -447,9 +587,22 @@ export default {
 }
 .timeline-scroll-wrapper {
   flex-grow: 1;
-  padding-left: 20px;
   box-sizing: border-box;
+  overflow: auto;
+  width: 100%;
 }
+
+.timeline-scroll-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+.timeline-scroll-wrapper::-webkit-scrollbar-track {
+  background: #20232a;
+}
+.timeline-scroll-wrapper::-webkit-scrollbar-thumb {
+  background-color: #4f5b6b;
+  border-radius: 4px;
+}
+
 .timeline-scroll-wrapper.is-locked {
   overflow-y: hidden;
 }
@@ -457,6 +610,8 @@ export default {
   position: relative;
   min-height: 100%;
   gap: 15px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .time-headers {
   position: sticky;
@@ -465,6 +620,8 @@ export default {
   z-index: 2;
   height: 20px;
   border-bottom: 1px solid #444;
+  top: 0px;
+  width: 100%;
 }
 .time-header-item {
   position: absolute;
@@ -482,7 +639,7 @@ export default {
   left: 0;
   width: 2px;
   background-color: #ff6b6b;
-  z-index: 3;
+  z-index: 1;
 }
 .character-rows-container {
   padding-top: 10px;
@@ -505,6 +662,8 @@ export default {
 .character-row-group.is-selected {
   background-color: #32363e;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .character-row-group.is-hidden {
   height: 0px;
@@ -517,14 +676,92 @@ export default {
 .job-lanes-container {
   padding: 15px 0;
   max-height: 90px;
-  overflow-y: hidden;
+  overflow-y: auto;
+  overflow-x: auto;
+  position: relative;
 }
+
+.job-lanes-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  background: linear-gradient(
+    to left,
+    rgba(40, 44, 52, 0.8) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.job-lanes-container:hover::before {
+  opacity: 1;
+}
+
+.job-lanes-container::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.job-lanes-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.job-lanes-container::-webkit-scrollbar-thumb {
+  background-color: #4f5b6b;
+  border-radius: 3px;
+}
+
+.job-lanes-container::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .expanded-jobs-view {
   padding: 20px;
   color: #e0e0e0;
   height: 100%;
-  overflow-y: auto;
   position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.expanded-jobs-view::-webkit-scrollbar {
+  width: 8px;
+}
+
+.expanded-jobs-view::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.expanded-jobs-view::-webkit-scrollbar-thumb {
+  background-color: #4f5b6b;
+  border-radius: 4px;
+}
+
+.expanded-jobs-view::-webkit-scrollbar-thumb:hover {
+  background-color: #61afef;
+}
+
+.focus-jobs-count {
+  position: sticky;
+  top: -100px;
+  background: linear-gradient(135deg, #32363e 0%, #2a2e36 100%);
+  color: #abb2bf;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  margin: -110px -10px 10px -10px;
+  border-radius: 6px;
+  text-align: center;
+  z-index: 2;
+  border: 1px solid #4a5160;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 .expanded-job-item {
   display: grid;
@@ -539,6 +776,12 @@ export default {
   height: 30px;
   background-color: #20232a;
   border-radius: 4px;
+}
+
+.job-bar-focus-view .completed-job {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 6px !important;
 }
 .job-bar-focus-view .job-bar-fill {
   position: absolute;
@@ -573,6 +816,17 @@ export default {
   cursor: pointer;
   transition: all 0.1s ease-in-out;
 }
+
+.job-bar.completed-job-bar {
+  height: 20px !important;
+  width: 20px !important;
+}
+
+.job-bar .completed-job {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 4px !important;
+}
 .job-bar.has-overlap {
   box-shadow: 0 0 8px 1px rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -581,6 +835,26 @@ export default {
   height: 100%;
   width: 100%;
   border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.job-bar-fill.completed-job {
+  animation: pulse 2s infinite;
+  border-radius: 4px;
+}
+
+.checkmark-icon {
+  width: 12px;
+  height: 12px;
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.checkmark-icon-expanded {
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5));
 }
 .tooltip {
   position: fixed;
@@ -601,5 +875,24 @@ export default {
   padding-top: 50px;
   font-size: 18px;
   color: #888;
+}
+
+/* Анимация пульсации для завершенных работ */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.9;
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
 }
 </style>
