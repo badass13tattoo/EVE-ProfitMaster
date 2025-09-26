@@ -45,6 +45,7 @@
           :jobs="filteredJobs"
           :characters="characters"
           :planets="planets"
+          :industry-jobs="industryJobs"
           :is-loading="loading"
           :selected-character-id="selectedCharacterId"
         />
@@ -96,6 +97,7 @@ export default {
     eventBus: reactive({}),
     jobs: {},
     piJobs: {}, // Отдельные данные о PI работах
+    industryJobs: {}, // Детальные данные об индустриальных работах
     characters: [],
     activities: {},
     planets: {}, // Данные о планетах для каждого персонажа
@@ -233,6 +235,7 @@ export default {
         this.activities = cachedData.activities || {};
         this.jobs = cachedData.jobs || {};
         this.piJobs = cachedData.piJobs || {};
+        this.industryJobs = cachedData.industryJobs || {};
         this.planets = cachedData.planets || {};
         this.isLoggedIn = this.characters.length > 0;
 
@@ -256,6 +259,7 @@ export default {
         activities: this.activities,
         jobs: this.jobs,
         piJobs: this.piJobs,
+        industryJobs: this.industryJobs,
         planets: this.planets,
       });
     },
@@ -572,6 +576,19 @@ export default {
         }
 
         // Планеты уже загружены в loadRealData
+
+        // Загружаем детальные индустриальные работы
+        const industryJobsResponse = await fetch(
+          `${this.apiBaseUrl}/api/industry/characters/${characterId}/jobs/detailed`
+        );
+        if (industryJobsResponse.ok) {
+          const industryJobsData = await industryJobsResponse.json();
+          this.industryJobs[characterId] = industryJobsData.jobs || [];
+          console.log(
+            `Industry jobs for character ${characterId}:`,
+            this.industryJobs[characterId]
+          );
+        }
 
         // Загружаем портрет
         const portraitResponse = await fetch(

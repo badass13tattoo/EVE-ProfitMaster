@@ -42,31 +42,136 @@ class BusinessLogicService:
         }
     
     def process_jobs_data(self, jobs: List[Dict], character_id: int) -> List[Dict]:
-        """Process raw jobs data into structured format"""
+        """Process enriched jobs data into structured format with detailed analysis"""
         processed_jobs = []
         
         for job in jobs:
-            # Get product and location info
-            product_info = self.esi_service.get_type_info(job.get('product_type_id', 0))
-            location_info = self.esi_service.get_location_info(job.get('location_id', 0))
-            
+            # Jobs уже обогащены в ESI сервисе, просто структурируем их
             processed_job = {
                 'job_id': job.get('job_id'),
                 'character_id': character_id,
                 'product_type_id': job.get('product_type_id'),
-                'product_name': product_info.get('name', f'Type {job.get("product_type_id")}'),
+                'product_name': job.get('product_name', f'Type {job.get("product_type_id")}'),
+                'product_volume': job.get('product_volume', 0),
+                'product_category': job.get('product_category', 0),
+                'product_group': job.get('product_group', 0),
                 'activity_id': job.get('activity_id'),
+                'activity_name': self._get_activity_name(job.get('activity_id')),
                 'start_date': job.get('start_date'),
                 'end_date': job.get('end_date'),
                 'location_id': job.get('location_id'),
-                'location_name': location_info.get('name', f'Location {job.get("location_id")}'),
-                'status': 'in-progress' if job.get('status') == 'active' else 'completed',
+                'location_name': job.get('location_name', f'Location {job.get("location_id")}'),
+                'location_type': job.get('location_type', 'unknown'),
+                'location_security': job.get('location_security', 0.0),
+                'station_id': job.get('station_id'),
+                'station_name': job.get('station_name'),
+                'station_type': job.get('station_type', 'unknown'),
+                'system_id': job.get('system_id'),
+                'system_name': job.get('system_name'),
+                'system_security': job.get('system_security', 0.0),
+                'corporation_id': job.get('corporation_id'),
+                'corporation_name': job.get('corporation_name'),
+                'status': job.get('status'),
                 'runs': job.get('runs', 1),
-                'cost': job.get('cost', 0)
+                'cost': job.get('cost', 0),
+                'duration_hours': job.get('duration_hours', 0.0),
+                'time_remaining_hours': job.get('time_remaining_hours', 0.0),
+                'is_completed': job.get('is_completed', False),
+                'is_paused': job.get('is_paused', False),
+                'progress_percentage': job.get('progress_percentage', 0.0),
+                'efficiency': self._calculate_job_efficiency(job),
+                'priority': self._calculate_job_priority(job),
+                'risk_level': self._calculate_risk_level(job)
             }
             processed_jobs.append(processed_job)
         
         return processed_jobs
+    
+    def _get_activity_name(self, activity_id: int) -> str:
+        """Get human-readable activity name"""
+        activities = {
+            1: "Manufacturing",
+            3: "Researching Technology",
+            4: "Researching Time Efficiency",
+            5: "Researching Material Efficiency", 
+            6: "Copying",
+            7: "Duplicating",
+            8: "Reverse Engineering",
+            9: "Invention",
+            11: "Reaction"
+        }
+        return activities.get(activity_id, f"Activity {activity_id}")
+    
+    def _calculate_job_efficiency(self, job: Dict) -> float:
+        """Calculate job efficiency based on various factors"""
+        efficiency = 100.0
+        
+        # Уменьшаем эффективность для высокосек систем
+        system_security = job.get('system_security', 0.0)
+        if system_security < 0.5:
+            efficiency -= 20.0  # Low sec penalty
+        elif system_security < 0.0:
+            efficiency -= 40.0  # Null sec penalty
+        
+        # Учитываем тип локации
+        location_type = job.get('location_type', 'unknown')
+        if location_type == 'structure':
+            efficiency += 10.0  # Structure bonus
+        elif location_type == 'station':
+            efficiency += 5.0   # Station bonus
+        
+        return max(0.0, min(100.0, efficiency))
+    
+    def _calculate_job_priority(self, job: Dict) -> str:
+        """Calculate job priority based on various factors"""
+        priority_score = 0
+        
+        # Время до завершения
+        time_remaining = job.get('time_remaining_hours', 0)
+        if time_remaining < 1:
+            priority_score += 100
+        elif time_remaining < 6:
+            priority_score += 80
+        elif time_remaining < 24:
+            priority_score += 60
+        elif time_remaining < 72:
+            priority_score += 40
+        
+        # Стоимость работы
+        cost = job.get('cost', 0)
+        if cost > 10000000:  # 10M ISK
+            priority_score += 30
+        elif cost > 1000000:  # 1M ISK
+            priority_score += 20
+        elif cost > 100000:   # 100K ISK
+            priority_score += 10
+        
+        # Прогресс
+        progress = job.get('progress_percentage', 0)
+        if progress > 90:
+            priority_score += 50
+        elif progress > 75:
+            priority_score += 30
+        elif progress > 50:
+            priority_score += 20
+        
+        if priority_score >= 80:
+            return "high"
+        elif priority_score >= 50:
+            return "medium"
+        else:
+            return "low"
+    
+    def _calculate_risk_level(self, job: Dict) -> str:
+        """Calculate risk level based on location security"""
+        system_security = job.get('system_security', 0.0)
+        
+        if system_security >= 0.5:
+            return "low"
+        elif system_security >= 0.0:
+            return "medium"
+        else:
+            return "high"
     
     def process_planets_data(self, planets: List[Dict], character_id: int, access_token: str) -> List[Dict]:
         """Process planets data and create planet jobs"""

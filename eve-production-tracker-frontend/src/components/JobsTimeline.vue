@@ -163,6 +163,51 @@
                 </div>
               </div>
 
+              <!-- Индустриальные работы персонажа -->
+              <div
+                v-if="industryJobs[char.character_id]"
+                class="industry-jobs-lane"
+              >
+                <div
+                  v-for="(lane, index) in getIndustryJobLanes(
+                    char.character_id
+                  )"
+                  :key="`industry-lane-${index}`"
+                  class="industry-job-lane"
+                >
+                  <div
+                    v-for="job in lane"
+                    :key="`industry-${job.job_id}`"
+                    class="industry-job-bar"
+                    :class="{
+                      'industry-job-completed': job.is_completed,
+                      'industry-job-paused': job.is_paused,
+                      'industry-job-high-priority': job.priority === 'high',
+                    }"
+                    :style="getIndustryJobStyle(job)"
+                    @mouseover="showIndustryJobTooltip(job, $event)"
+                    @mouseleave="hideTooltip"
+                  >
+                    <div
+                      class="industry-job-fill"
+                      :style="{
+                        backgroundColor: getIndustryJobColor(job.activity_id),
+                      }"
+                    >
+                      <div class="industry-job-name">
+                        {{ job.product_name }}
+                      </div>
+                      <div
+                        class="industry-job-progress"
+                        v-if="!job.is_completed"
+                      >
+                        {{ Math.round(job.progress_percentage) }}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <template v-if="processedJobs[char.character_id]">
                 <div
                   v-for="(lane, index) in processedJobs[char.character_id]"
@@ -200,7 +245,13 @@
         v-html="getPlanetTooltipContent(tooltip.planet)"
       ></div>
 
-      <!-- Тултип для работ -->
+      <!-- Тултип для индустриальных работ -->
+      <div
+        v-else-if="tooltip.type === 'industry'"
+        v-html="getIndustryJobTooltipContent(tooltip.job)"
+      ></div>
+
+      <!-- Тултип для обычных работ -->
       <div v-else>
         <strong>{{ tooltip.job.product_name }}</strong
         ><br />
@@ -258,7 +309,14 @@
 <script>
 export default {
   name: "JobsTimeline",
-  props: ["jobs", "characters", "planets", "isLoading", "selectedCharacterId"],
+  props: [
+    "jobs",
+    "characters",
+    "planets",
+    "industryJobs",
+    "isLoading",
+    "selectedCharacterId",
+  ],
   inject: ["eventBus"],
   emits: [],
   data: () => ({
@@ -424,6 +482,8 @@ export default {
         "--tooltip-bg":
           this.tooltip.type === "planet"
             ? "#ECECBB"
+            : this.tooltip.type === "industry"
+            ? this.getIndustryJobColor(this.tooltip.job?.activity_id)
             : this.getJobColor(this.tooltip.job?.activity_id),
       };
     },
@@ -656,6 +716,157 @@ export default {
         18: "Shattered (High Sec)",
       };
       return types[planetType] || "Unknown";
+    },
+
+    // Методы для работы с индустриальными работами
+    getIndustryJobLanes(characterId) {
+      const jobs = this.industryJobs[characterId] || [];
+      if (!jobs.length) return [];
+
+      // Сортируем работы по времени начала
+      const sortedJobs = [...jobs].sort(
+        (a, b) => new Date(a.start_date) - new Date(b.start_date)
+      );
+
+      const lanes = [];
+
+      // Определяем временные границы видимой области
+      const viewStart = this.now;
+      const viewEnd = new Date(this.now.getTime() + this.totalDurationMs);
+
+      for (const job of sortedJobs) {
+        const jobEndDate = new Date(job.end_date);
+        const jobStartDate = new Date(job.start_date);
+
+        // Пропускаем работы за пределами видимой области
+        if (
+          jobEndDate < viewStart &&
+          viewStart - jobEndDate > this.totalDurationMs / 4
+        )
+          continue;
+        if (jobStartDate > viewEnd) continue;
+
+        let placed = false;
+        // Ищем подходящую линию
+        for (const lane of lanes) {
+          let hasOverlap = false;
+          for (const existingJob of lane) {
+            if (
+              new Date(job.start_date) < new Date(existingJob.end_date) &&
+              new Date(existingJob.start_date) < new Date(job.end_date)
+            ) {
+              hasOverlap = true;
+              break;
+            }
+          }
+
+          if (!hasOverlap) {
+            lane.push(job);
+            placed = true;
+            break;
+          }
+        }
+
+        if (!placed) {
+          lanes.push([job]);
+        }
+      }
+
+      return lanes;
+    },
+
+    getIndustryJobStyle(job) {
+      const startOffsetMs = Math.max(
+        0,
+        new Date(job.start_date).getTime() - this.now.getTime()
+      );
+      const endOffsetMs = new Date(job.end_date).getTime() - this.now.getTime();
+
+      const left = (startOffsetMs / 3600e3) * this.pixelsPerHour;
+      const endPosition = (endOffsetMs / 3600e3) * this.pixelsPerHour;
+      const width = Math.max(2, endPosition - left);
+
+      return {
+        transform: `translateX(${left}px)`,
+        width: `${width}px`,
+        height: "10px",
+      };
+    },
+
+    getIndustryJobColor(activityId) {
+      const colors = {
+        1: "#E1AA36", // Manufacturing
+        3: "#239BA7", // Researching Technology
+        4: "#239BA7", // Researching Time Efficiency
+        5: "#239BA7", // Researching Material Efficiency
+        6: "#239BA7", // Copying
+        7: "#239BA7", // Duplicating
+        8: "#239BA7", // Reverse Engineering
+        9: "#239BA7", // Invention
+        11: "#7ADAA5", // Reaction
+      };
+      return colors[activityId] || "#7f8c8d";
+    },
+
+    showIndustryJobTooltip(job, event) {
+      const rect = event.target.getBoundingClientRect();
+      this.tooltip = {
+        visible: true,
+        job: job,
+        x: rect.left + rect.width / 2,
+        y: rect.top - 10,
+        type: "industry",
+      };
+    },
+
+    getIndustryJobTooltipContent(job) {
+      let content = `<strong>${job.product_name}</strong><br>`;
+      content += `Тип: ${
+        job.activity_name || this.getJobType(job.activity_id)
+      }<br>`;
+      content += `Локация: ${job.location_name}<br>`;
+      content += `Система: ${job.system_name || "Unknown"}<br>`;
+      content += `Безопасность: ${
+        job.system_security ? job.system_security.toFixed(2) : "Unknown"
+      }<br>`;
+
+      if (job.is_completed) {
+        content += `<span style="color: #4CAF50;">✅ Завершено</span><br>`;
+      } else if (job.is_paused) {
+        content += `<span style="color: #FF9800;">⏸️ Приостановлено</span><br>`;
+      } else {
+        const timeRemaining = this.getTimeRemaining(job.end_date);
+        content += `Осталось: ${timeRemaining}<br>`;
+        content += `Прогресс: ${Math.round(job.progress_percentage || 0)}%<br>`;
+      }
+
+      content += `Длительность: ${job.duration_hours || 0}ч<br>`;
+      content += `Стоимость: ${(job.cost || 0).toLocaleString()} ISK<br>`;
+      content += `Рангов: ${job.runs || 1}<br>`;
+
+      if (job.priority) {
+        const priorityColors = {
+          high: "#f44336",
+          medium: "#ff9800",
+          low: "#4caf50",
+        };
+        content += `Приоритет: <span style="color: ${
+          priorityColors[job.priority]
+        };">${job.priority.toUpperCase()}</span><br>`;
+      }
+
+      if (job.risk_level) {
+        const riskColors = {
+          high: "#f44336",
+          medium: "#ff9800",
+          low: "#4caf50",
+        };
+        content += `Риск: <span style="color: ${
+          riskColors[job.risk_level]
+        };">${job.risk_level.toUpperCase()}</span><br>`;
+      }
+
+      return content;
     },
 
     // Поиск работы по ID
@@ -1449,6 +1660,82 @@ export default {
 
 .planet-needs-attention .planet-job-fill {
   box-shadow: 0 0 4px rgba(255, 107, 107, 0.3);
+}
+
+/* Стили для индустриальных работ */
+.industry-jobs-lane {
+  position: relative;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #3c414d;
+  padding-bottom: 2px;
+}
+
+.industry-job-lane {
+  position: relative;
+  height: 10px;
+  margin-bottom: 2px;
+}
+
+.industry-job-bar {
+  position: absolute;
+  height: 10px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  z-index: 1;
+}
+
+.industry-job-bar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.industry-job-fill {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.industry-job-name {
+  color: white;
+  font-size: 10px;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70%;
+}
+
+.industry-job-progress {
+  color: white;
+  font-size: 9px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+  flex-shrink: 0;
+}
+
+.industry-job-completed .industry-job-fill {
+  opacity: 0.7;
+  background-color: #4caf50 !important;
+}
+
+.industry-job-paused .industry-job-fill {
+  opacity: 0.8;
+  background-color: #ff9800 !important;
+}
+
+.industry-job-high-priority {
+  box-shadow: 0 0 4px rgba(244, 67, 54, 0.5);
+  border: 1px solid rgba(244, 67, 54, 0.3);
 }
 
 /* Анимация мигания для индикатора внимания */

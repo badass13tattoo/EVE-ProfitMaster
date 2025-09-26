@@ -28,6 +28,7 @@ from services.market_data_service import MarketDataService
 from controllers.auth_controller import AuthController
 from controllers.character_controller import CharacterController
 from controllers.market_controller import MarketController
+from controllers.industry_controller import IndustryController
 
 from models.user import User
 from models.project import Project
@@ -76,6 +77,7 @@ def create_app():
     auth_controller = AuthController(eve_sso_service, user_model, db)
     character_controller = CharacterController(esi_service, business_logic_service, auth_controller)
     market_controller = MarketController(market_service)
+    industry_controller = IndustryController()
     
     # Helper functions
     def get_working_api_url():
@@ -243,6 +245,113 @@ def create_app():
     def get_market_group_info(group_id):
         """Get market group information"""
         return jsonify(market_controller.get_market_group_info(group_id))
+    
+    # Industry routes - Detailed industrial jobs data collection
+    @app.route('/api/industry/characters/<int:character_id>/summary')
+    def get_character_industry_summary(character_id):
+        """Get comprehensive industry summary for a character"""
+        user = auth_controller.get_user_by_character_id(character_id)
+        if not user:
+            return jsonify({'error': 'Character not found'}), 404
+        
+        if not auth_controller.refresh_access_token(user):
+            return jsonify({'error': 'Authentication failed'}), 401
+        
+        result = industry_controller.get_character_industry_summary(character_id, user.access_token)
+        if 'error' in result:
+            return jsonify(result), 500
+        return jsonify(result)
+    
+    @app.route('/api/industry/characters/<int:character_id>/jobs/by-activity')
+    def get_jobs_by_activity(character_id):
+        """Get jobs filtered by activity type"""
+        user = auth_controller.get_user_by_character_id(character_id)
+        if not user:
+            return jsonify({'error': 'Character not found'}), 404
+        
+        if not auth_controller.refresh_access_token(user):
+            return jsonify({'error': 'Authentication failed'}), 401
+        
+        activity_id = request.args.get('activity_id', type=int)
+        result = industry_controller.get_jobs_by_activity(character_id, user.access_token, activity_id)
+        if 'error' in result:
+            return jsonify(result), 500
+        return jsonify(result)
+    
+    @app.route('/api/industry/characters/<int:character_id>/jobs/by-location')
+    def get_jobs_by_location(character_id):
+        """Get jobs grouped by location with security analysis"""
+        user = auth_controller.get_user_by_character_id(character_id)
+        if not user:
+            return jsonify({'error': 'Character not found'}), 404
+        
+        if not auth_controller.refresh_access_token(user):
+            return jsonify({'error': 'Authentication failed'}), 401
+        
+        result = industry_controller.get_jobs_by_location(character_id, user.access_token)
+        if 'error' in result:
+            return jsonify(result), 500
+        return jsonify(result)
+    
+    @app.route('/api/industry/characters/<int:character_id>/jobs/priority')
+    def get_priority_jobs(character_id):
+        """Get jobs by priority level"""
+        user = auth_controller.get_user_by_character_id(character_id)
+        if not user:
+            return jsonify({'error': 'Character not found'}), 404
+        
+        if not auth_controller.refresh_access_token(user):
+            return jsonify({'error': 'Authentication failed'}), 401
+        
+        priority = request.args.get('priority', 'high')
+        if priority not in ['high', 'medium', 'low']:
+            return jsonify({'error': 'Priority must be high, medium, or low'}), 400
+        
+        result = industry_controller.get_priority_jobs(character_id, user.access_token, priority)
+        if 'error' in result:
+            return jsonify(result), 500
+        return jsonify(result)
+    
+    @app.route('/api/industry/characters/<int:character_id>/jobs/attention')
+    def get_jobs_needing_attention(character_id):
+        """Get jobs that need immediate attention"""
+        user = auth_controller.get_user_by_character_id(character_id)
+        if not user:
+            return jsonify({'error': 'Character not found'}), 404
+        
+        if not auth_controller.refresh_access_token(user):
+            return jsonify({'error': 'Authentication failed'}), 401
+        
+        result = industry_controller.get_jobs_needing_attention(character_id, user.access_token)
+        if 'error' in result:
+            return jsonify(result), 500
+        return jsonify(result)
+    
+    @app.route('/api/industry/characters/<int:character_id>/jobs/detailed')
+    def get_detailed_jobs(character_id):
+        """Get detailed jobs data with all enriched information"""
+        user = auth_controller.get_user_by_character_id(character_id)
+        if not user:
+            return jsonify({'error': 'Character not found'}), 404
+        
+        if not auth_controller.refresh_access_token(user):
+            return jsonify({'error': 'Authentication failed'}), 401
+        
+        # Get raw jobs data
+        jobs = esi_service.get_character_jobs(character_id, user.access_token)
+        if not jobs:
+            return jsonify({'character_id': character_id, 'jobs': []})
+        
+        # Process jobs data
+        processed_jobs = business_logic_service.process_jobs_data(jobs, character_id)
+        
+        return jsonify({
+            'character_id': character_id,
+            'jobs': processed_jobs,
+            'total_jobs': len(processed_jobs),
+            'active_jobs': len([j for j in processed_jobs if j['status'] == 'active']),
+            'completed_jobs': len([j for j in processed_jobs if j['is_completed']])
+        })
     
     # Utility routes
     @app.route('/api/types/<int:type_id>')
