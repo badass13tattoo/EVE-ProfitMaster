@@ -113,7 +113,7 @@ def create_app():
         print(f"Using callback URL: {CALLBACK_URL}")
         print(f"Client ID: {CLIENT_ID}")
         
-        scopes = "publicData esi-skills.read_skills.v1 esi-wallet.read_character_wallet.v1 esi-assets.read_assets.v1 esi-planets.manage_planets.v1 esi-industry.read_character_jobs.v1 esi-characters.read_blueprints.v1"
+        scopes = "publicData esi-skills.read_skills.v1 esi-wallet.read_character_wallet.v1 esi-assets.read_assets.v1 esi-planets.manage_planets.v1 esi-industry.read_character_jobs.v1 esi-characters.read_blueprints.v1 esi-industry.read_character_mining.v1 esi-industry.read_corporation_jobs.v1"
         params = {'response_type': 'code', 'redirect_uri': CALLBACK_URL, 'client_id': CLIENT_ID, 'scope': scopes, 'state': secrets.token_urlsafe(16)}
         session['oauth_state'] = params['state']
         auth_url = requests.Request('GET', 'https://login.eveonline.com/v2/oauth/authorize', params=params).prepare().url
@@ -174,9 +174,21 @@ def create_app():
                 print(f"Token refresh failed for {user.character_name}, marking for removal")
                 users_to_remove.append(user)
                 continue
+            
             headers = {'Authorization': f'Bearer {user.access_token}'}
-            resp = requests.get(f'https://esi.evetech.net/latest/characters/{user.character_id}/industry/jobs/', headers=headers)
-            jobs_by_character[str(user.character_id)] = resp.json() if resp.status_code == 200 else []
+            jobs_url = f'https://esi.evetech.net/latest/characters/{user.character_id}/industry/jobs/'
+            print(f"Fetching jobs for {user.character_name} from {jobs_url}")
+            
+            resp = requests.get(jobs_url, headers=headers)
+            print(f"Jobs API response for {user.character_name}: {resp.status_code}")
+            
+            if resp.status_code == 200:
+                jobs_data = resp.json()
+                jobs_by_character[str(user.character_id)] = jobs_data
+                print(f"Found {len(jobs_data)} jobs for {user.character_name}")
+            else:
+                print(f"Jobs API error for {user.character_name}: {resp.text}")
+                jobs_by_character[str(user.character_id)] = []
         
         # Remove users with invalid tokens
         for user in users_to_remove:
@@ -265,6 +277,35 @@ def create_app():
         except Exception as e:
             print(f"Error resetting database: {str(e)}")
             return jsonify({'error': f'Ошибка очистки базы данных: {str(e)}'}), 500
+
+    @app.route('/check_token_scopes/<int:character_id>')
+    def check_token_scopes(character_id):
+        try:
+            user = User.query.filter_by(character_id=character_id).first()
+            if not user:
+                return jsonify({'error': 'Персонаж не найден'}), 404
+            
+            if not refresh_access_token(user):
+                return jsonify({'error': 'Не удалось обновить токен'}), 401
+            
+            headers = {'Authorization': f'Bearer {user.access_token}'}
+            # Проверяем токен через EVE SSO verify endpoint
+            verify_resp = requests.get('https://login.eveonline.com/oauth/verify', headers=headers)
+            
+            if verify_resp.status_code == 200:
+                token_info = verify_resp.json()
+                scopes = token_info.get('Scopes', '').split(' ')
+                return jsonify({
+                    'character_name': user.character_name,
+                    'scopes': scopes,
+                    'has_industry_jobs_scope': 'esi-industry.read_character_jobs.v1' in scopes
+                })
+            else:
+                return jsonify({'error': 'Не удалось проверить токен'}), 500
+                
+        except Exception as e:
+            print(f"Error checking token scopes: {str(e)}")
+            return jsonify({'error': f'Ошибка проверки скоупов: {str(e)}'}), 500
 
     return app
 
