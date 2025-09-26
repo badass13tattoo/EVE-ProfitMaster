@@ -112,9 +112,10 @@ export default {
   background-color: #20232a;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 5; /* Уменьшаем z-index */
   border-bottom: 1px solid #3c414d;
   margin: -20px -15px 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Добавляем тень для лучшего разделения */
 }
 
 .panel-title {
@@ -127,11 +128,12 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  height: calc(100% - 95px); /* Увеличиваем высоту, так как убрали кнопку */
+  height: calc(100% - 105px); /* Увеличиваем высоту с учетом отступов */
   overflow-y: scroll;
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
-  padding-bottom: 20px; /* Уменьшаем отступ снизу */
+  padding-bottom: 40px; /* Увеличиваем отступ снизу для предотвращения перекрытия */
+  padding-top: 10px; /* Добавляем отступ сверху */
 }
 .characters-list::-webkit-scrollbar {
   display: none;
@@ -148,12 +150,19 @@ export default {
   min-height: 120px;
   max-height: 120px;
   box-sizing: border-box;
+  position: relative; /* Добавляем для правильного позиционирования */
+  z-index: 1; /* Убеждаемся что карточки поверх фона */
 }
 .character-card:hover {
   border-color: #61afef;
 }
 .character-card.is-active {
   border-color: #c678dd;
+}
+
+/* Специальный стиль для последней карточки персонажа */
+.character-card:last-child {
+  margin-bottom: 20px; /* Дополнительный отступ для последней карточки */
 }
 .card-left {
   width: 33.33%;
