@@ -228,7 +228,7 @@ def create_app():
         if app.config.get('FLASK_ENV') == 'development':
             return redirect('http://localhost:8080/?auth=success')
         else:
-            return redirect('https://eve-profitmaster.onrender.com/?auth=success')
+            return redirect('https://eve-profitmaster-1.onrender.com/?auth=success')
 
     @app.route('/popup_close')
     def popup_close(): return render_template('popup_close.html')
