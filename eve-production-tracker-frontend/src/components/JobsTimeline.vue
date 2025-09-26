@@ -1453,6 +1453,8 @@ export default {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  /* КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Обрезаем содержимое, которое выходит за границы жесткой высоты */
+  overflow: hidden;
 }
 .character-row-group.is-selected {
   background-color: #32363e;
