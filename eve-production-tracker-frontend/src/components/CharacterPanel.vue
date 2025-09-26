@@ -154,9 +154,9 @@ export default {
   border: 2px solid #3c414d;
   cursor: pointer;
   transition: all 0.2s;
-  height: 60px;
-  min-height: 60px;
-  max-height: 60px;
+  height: 120px;
+  min-height: 120px;
+  max-height: 120px;
   box-sizing: border-box;
   position: relative; /* Добавляем для правильного позиционирования */
   z-index: 1; /* Убеждаемся что карточки поверх фона */
