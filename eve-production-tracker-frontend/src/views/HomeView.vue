@@ -132,22 +132,24 @@ export default {
 
     // Авторизация через EVE Online SSO
     loginWithEVE() {
-      console.log('Попытка авторизации через EVE SSO...');
-      console.log('API Base URL:', this.apiBaseUrl);
-      
+      console.log("Попытка авторизации через EVE SSO...");
+      console.log("API Base URL:", this.apiBaseUrl);
+
       // Проверяем доступность backend перед перенаправлением
       fetch(`${this.apiBaseUrl}/`)
-        .then(response => {
+        .then((response) => {
           if (response.ok) {
-            console.log('Backend доступен, перенаправляем на авторизацию');
+            console.log("Backend доступен, перенаправляем на авторизацию");
             window.location.href = `${this.apiBaseUrl}/login`;
           } else {
-            throw new Error('Backend недоступен');
+            throw new Error("Backend недоступен");
           }
         })
-        .catch(error => {
-          console.error('Ошибка подключения к backend:', error);
-          alert('Ошибка: Backend сервер недоступен!\n\nУбедитесь что:\n1. Flask сервер запущен (python app.py)\n2. Сервер работает на http://localhost:5000\n3. .env файл настроен правильно');
+        .catch((error) => {
+          console.error("Ошибка подключения к backend:", error);
+          alert(
+            "Ошибка: Backend сервер недоступен!\n\nУбедитесь что:\n1. Flask сервер запущен (python app.py)\n2. Сервер работает на http://localhost:5000\n3. .env файл настроен правильно"
+          );
         });
     },
 

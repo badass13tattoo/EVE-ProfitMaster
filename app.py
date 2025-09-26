@@ -12,6 +12,10 @@ load_dotenv()
 db = SQLAlchemy()
 cors = CORS()
 
+# Проверяем загрузку переменных окружения
+print("DATABASE_URL:", os.environ.get('DATABASE_URL', 'NOT SET'))
+print("EVE_CLIENT_ID:", os.environ.get('EVE_CLIENT_ID', 'NOT SET'))
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     character_id = db.Column(db.BigInteger, unique=True, nullable=False)
@@ -22,7 +26,7 @@ class User(db.Model):
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', secrets.token_hex(16))
-    database_url = os.environ.get('DATABASE_URL')
+    database_url = os.environ.get('DATABASE_URL') or 'postgresql://eve_profitmaster_v2_user:dimISkVaaTRhbCYnLbgNNjnCvudXwRaq@dpg-d39v2lp5pdvs73botp5g-a.frankfurt-postgres.render.com/eve_profitmaster_v2'
     if database_url:
         if database_url.startswith("postgresql://"):
             database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
@@ -57,10 +61,7 @@ def create_app():
     def login():
         CLIENT_ID = os.environ.get('EVE_CLIENT_ID')
         # Определяем callback URL в зависимости от режима
-        if app.config.get('FLASK_ENV') == 'development':
-            CALLBACK_URL = 'http://localhost:5000/callback'
-        else:
-            CALLBACK_URL = 'https://eve-profitmaster.onrender.com/callback'
+        CALLBACK_URL = 'http://localhost:5000/callback'
         
         scopes = "publicData esi-skills.read_skills.v1 esi-wallet.read_character_wallet.v1 esi-assets.read_assets.v1 esi-planets.manage_planets.v1 esi-industry.read_character_jobs.v1 esi-characters.read_blueprints.v1"
         params = {'response_type': 'code', 'redirect_uri': CALLBACK_URL, 'client_id': CLIENT_ID, 'scope': scopes, 'state': secrets.token_urlsafe(16)}
