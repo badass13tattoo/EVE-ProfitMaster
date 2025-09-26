@@ -453,9 +453,9 @@ export default {
         const left = (endOffsetMs / 3600e3) * this.pixelsPerHour;
         return {
           transform: `translateX(${left}px)`,
-          width: "20px",
-          height: "20px",
-          borderRadius: "4px",
+          width: "30px",
+          height: "30px",
+          borderRadius: "6px",
         };
       }
 
@@ -818,15 +818,15 @@ export default {
 }
 
 .job-bar.completed-job-bar {
-  height: 20px !important;
-  width: 20px !important;
+  height: 30px !important;
+  width: 30px !important;
   animation: pulse 2s infinite;
 }
 
 .job-bar .completed-job {
-  width: 20px !important;
-  height: 20px !important;
-  border-radius: 4px !important;
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 6px !important;
   animation: pulse 2s infinite;
 }
 .job-bar.has-overlap {

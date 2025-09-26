@@ -294,6 +294,27 @@ export default {
           console.log(`Blueprints for character ${characterId}:`, blueprints);
         }
 
+        // Загружаем планеты
+        const planetsResponse = await fetch(
+          `${this.apiBaseUrl}/get_character_planets/${characterId}`
+        );
+        if (planetsResponse.ok) {
+          const planets = await planetsResponse.json();
+          console.log(`Planets for character ${characterId}:`, planets);
+
+          // Анализируем планеты, требующие внимания
+          const planetsNeedingAttention = planets.filter(
+            (planet) => planet.needs_attention
+          );
+          if (planetsNeedingAttention.length > 0) {
+            console.log(
+              `Planets needing attention for character ${characterId}:`,
+              planetsNeedingAttention
+            );
+            // Здесь можно добавить уведомления или другие действия
+          }
+        }
+
         // Загружаем портрет
         const portraitResponse = await fetch(
           `${this.apiBaseUrl}/get_character_portrait/${characterId}`
