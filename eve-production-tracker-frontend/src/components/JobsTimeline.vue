@@ -336,6 +336,9 @@ export default {
     now: new Date(),
     interval: null,
     containerWidth: 1000,
+    // Константы для высоты строк
+    CHARACTER_ROW_HEIGHT: 120, // Высота карточки в CharacterPanel.vue
+    PADDING_COMPENSATION: 20, // Компенсация для padding-bottom
     // Оптимизация обновлений
     _lastUpdateTime: 0,
     _updateThrottle: 5000, // Обновляем максимум раз в 5 секунд
@@ -509,16 +512,22 @@ export default {
   },
   methods: {
     getCharacterRowStyle(characterId) {
+      const BASE_HEIGHT = this.CHARACTER_ROW_HEIGHT; // Используем высоту карточки персонажа
+      const PADDING_COMPENSATION = this.PADDING_COMPENSATION; // Компенсация, если нужно
+
       if (this.selectedCharacterId === characterId) {
+        // ... Логика для is-selected ...
         return {
           height: `${this.focusRowHeight}px`,
           minHeight: `${this.focusRowHeight}px`,
         };
       }
+
       if (
         this.selectedCharacterId &&
         this.selectedCharacterId !== characterId
       ) {
+        // ... Логика для is-hidden ...
         return {
           height: "0px",
           minHeight: "0px",
@@ -526,10 +535,13 @@ export default {
           border: "none",
         };
       }
+
+      // Стандартный вид: высота карточки + padding-bottom
       return {
-        height: "120px",
-        minHeight: "120px",
-        maxHeight: "120px",
+        height: `${BASE_HEIGHT + PADDING_COMPENSATION}px`,
+        minHeight: `${BASE_HEIGHT + PADDING_COMPENSATION}px`,
+        maxHeight: `${BASE_HEIGHT + PADDING_COMPENSATION}px`,
+        /* ВАЖНО: УДАЛИТЬ ЛИШНИЕ BORDER-BOTTOM из CSS, если мы не добавляем +1px сюда */
       };
     },
 
@@ -548,7 +560,7 @@ export default {
           // Свернутый персонаж - не добавляем высоту
           continue;
         } else {
-          topPosition += 120; // Стандартная высота персонажа
+          topPosition += this.CHARACTER_ROW_HEIGHT + this.PADDING_COMPENSATION; // Стандартная высота персонажа + компенсация
         }
 
         // Добавляем gap между персонажами (15px)
@@ -558,7 +570,8 @@ export default {
       }
 
       // Определяем высоту текущего персонажа
-      let characterHeight = 120; // Стандартная высота
+      let characterHeight =
+        this.CHARACTER_ROW_HEIGHT + this.PADDING_COMPENSATION; // Стандартная высота + компенсация
       if (this.selectedCharacterId === characterId) {
         characterHeight = this.focusRowHeight;
       } else if (
@@ -1402,7 +1415,9 @@ export default {
 }
 .timeline-wrapper {
   position: relative;
-  min-height: 100%;
+  /* min-height: 100%; -> УДАЛИТЬ/ИЗМЕНИТЬ */
+  /* Оставим высоту для контента */
+  height: 100%;
   gap: 15px;
   max-width: 100%;
   box-sizing: border-box;
@@ -1428,30 +1443,42 @@ export default {
 }
 .current-time-line {
   position: absolute;
-  top: 0;
+  top: 20px; /* Сдвигаем вниз на высоту заголовков времени */
   bottom: 0;
   left: 0;
   width: 2px;
   background-color: #ff6b6b;
-  z-index: 1;
+  z-index: 3;
+  /* НОВОЕ: Добавьте transition для плавности при смене масштаба */
+  transition: transform 0.3s linear;
 }
 .character-rows-container {
+  /* Сохраняем padding-top, чтобы отступить от time-headers */
   padding-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 15px; /* Этот gap должен соответствовать gap в .characters-list */
   flex-grow: 1;
   position: relative;
+  /* НОВОЕ: Занимаем оставшееся место, чтобы корректно работать с высотой */
+  height: calc(
+    100% - 30px
+  ); /* 30px - примерная высота time-headers и padding */
+  overflow-y: scroll; /* Теперь контейнер строк должен скроллиться */
 }
 .character-row-group {
-  height: 120px;
+  /* ИЗМЕНИТЬ: Убрать жесткую высоту, задать через JS */
+  height: 120px; /* Жесткая высота должна быть убрана или задана через JS */
   min-height: 120px;
   max-height: 120px;
   box-sizing: border-box;
+  /* УБРАТЬ: border-bottom - Эта граница уже есть в character-row-group */
   transition: all 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  /* НОВОЕ: Добавьте padding-bottom, чтобы компенсировать padding-bottom карточек персонажа */
+  padding-bottom: 20px;
 }
 .character-row-group.is-selected {
   background-color: #32363e;
@@ -1465,7 +1492,7 @@ export default {
   overflow: hidden;
   padding-top: 0;
   padding-bottom: 0;
-  border: none;
+  border: none; /* Убедитесь, что скрытые строки не имеют границ */
 }
 
 /* Бордерлайны для обозначения границ таймлайнов персонажей */
@@ -1495,9 +1522,10 @@ export default {
   box-shadow: 0 0 10px rgba(198, 120, 221, 0.3);
 }
 .job-lanes-container {
-  padding: 15px 0;
-  max-height: none;
-  overflow: visible;
+  /* Изменить padding, чтобы компенсировать отсутствующую border-bottom */
+  padding: 15px 0 0; /* Убираем нижний padding, так как граница уже есть */
+  max-height: 90px;
+  overflow-y: hidden;
   position: relative;
 }
 
