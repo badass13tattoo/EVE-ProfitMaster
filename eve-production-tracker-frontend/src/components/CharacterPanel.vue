@@ -11,70 +11,88 @@
         <span class="add-char-text">Add Character</span>
       </button>
     </div>
-    <div class="characters-list" ref="charactersList">
-      <div
-        v-for="char in characters"
-        :key="char.character_id"
-        class="character-card"
-        :class="{ 'is-active': selectedCharacterId === char.character_id }"
-        @click="$emit('select-character', char.character_id)"
-      >
-        <div class="card-left">
-          <img
-            :src="getCharacterPortrait(char.character_id)"
-            :alt="char.character_name"
-            class="character-portrait"
-          />
-        </div>
-        <div class="card-right">
-          <div class="name-block">
-            <span class="character-name">{{ char.character_name }}</span>
-            <button
-              @click.stop="$emit('remove-character', char.character_id)"
-              class="remove-char-btn"
-              title="Удалить персонажа"
-            >
-              ×
-            </button>
+    <VirtualizedList
+      :items="characters"
+      :item-height="135"
+      :overscan="3"
+      :get-item-key="(char) => char.character_id"
+      class="characters-list"
+      ref="charactersList"
+    >
+      <template #default="{ item: char, index }">
+        <div
+          class="character-card"
+          :class="{ 'is-active': selectedCharacterId === char.character_id }"
+          @click="$emit('select-character', char.character_id)"
+        >
+          <div class="card-left">
+            <LazyImage
+              :src="getCharacterPortrait(char.character_id)"
+              :alt="char.character_name"
+              :width="128"
+              :height="128"
+              class="character-portrait"
+            />
           </div>
-          <div v-if="activities[char.character_id]" class="activity-grid">
-            <div class="info-line" title="MAnufacturing">
-              <img src="/icons/manufacturing.svg" class="activity-icon" /><span
-                >{{ activities[char.character_id].lines.manufacturing.used }}/{{
-                  activities[char.character_id].lines.manufacturing.total
-                }}</span
+          <div class="card-right">
+            <div class="name-block">
+              <span class="character-name">{{ char.character_name }}</span>
+              <button
+                @click.stop="$emit('remove-character', char.character_id)"
+                class="remove-char-btn"
+                title="Удалить персонажа"
               >
+                ×
+              </button>
             </div>
-            <div class="info-line" title="Research">
-              <img src="/icons/research.svg" class="activity-icon" /><span
-                >{{ activities[char.character_id].lines.research.used }}/{{
-                  activities[char.character_id].lines.research.total
-                }}</span
-              >
-            </div>
-            <div class="info-line" title="Reaction">
-              <img src="/icons/reactions.svg" class="activity-icon" /><span
-                >{{ activities[char.character_id].lines.reactions.used }}/{{
-                  activities[char.character_id].lines.reactions.total
-                }}</span
-              >
-            </div>
-            <div class="info-line" title="Planets">
-              <img src="/icons/planets.svg" class="activity-icon" /><span
-                >{{ activities[char.character_id].planets.used }}/{{
-                  activities[char.character_id].planets.total
-                }}</span
-              >
+            <div v-if="activities[char.character_id]" class="activity-grid">
+              <div class="info-line" title="MAnufacturing">
+                <img
+                  src="/icons/manufacturing.svg"
+                  class="activity-icon"
+                /><span
+                  >{{
+                    activities[char.character_id].lines.manufacturing.used
+                  }}/{{
+                    activities[char.character_id].lines.manufacturing.total
+                  }}</span
+                >
+              </div>
+              <div class="info-line" title="Research">
+                <img src="/icons/research.svg" class="activity-icon" /><span
+                  >{{ activities[char.character_id].lines.research.used }}/{{
+                    activities[char.character_id].lines.research.total
+                  }}</span
+                >
+              </div>
+              <div class="info-line" title="Reaction">
+                <img src="/icons/reactions.svg" class="activity-icon" /><span
+                  >{{ activities[char.character_id].lines.reactions.used }}/{{
+                    activities[char.character_id].lines.reactions.total
+                  }}</span
+                >
+              </div>
+              <div class="info-line" title="Planets">
+                <img src="/icons/planets.svg" class="activity-icon" /><span
+                  >{{ activities[char.character_id].planets.used }}/{{
+                    activities[char.character_id].planets.total
+                  }}</span
+                >
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </template>
+    </VirtualizedList>
   </div>
 </template>
 <script>
+import VirtualizedList from "./VirtualizedList.vue";
+import LazyImage from "./LazyImage.vue";
+
 export default {
   name: "CharacterPanel",
+  components: { VirtualizedList, LazyImage },
   props: ["characters", "activities", "selectedCharacterId"],
   inject: ["eventBus"],
   emits: ["add-character", "remove-character", "select-character"],
@@ -87,7 +105,7 @@ export default {
     },
     handleExternalScroll(scrollData) {
       if (scrollData.source === "character-panel") return;
-      const el = this.$refs.charactersList;
+      const el = this.$refs.charactersList?.$refs?.container;
       if (el) el.scrollTop = scrollData.scrollTop;
     },
   },
@@ -125,18 +143,8 @@ export default {
   font-size: 18px;
 }
 .characters-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
   height: calc(100% - 105px); /* Увеличиваем высоту с учетом отступов */
-  overflow-y: scroll;
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
-  padding-bottom: 40px; /* Увеличиваем отступ снизу для предотвращения перекрытия */
-  padding-top: 10px; /* Добавляем отступ сверху */
-}
-.characters-list::-webkit-scrollbar {
-  display: none;
+  padding: 10px 0 40px 0; /* Добавляем отступы сверху и снизу */
 }
 .character-card {
   display: flex;
@@ -152,6 +160,7 @@ export default {
   box-sizing: border-box;
   position: relative; /* Добавляем для правильного позиционирования */
   z-index: 1; /* Убеждаемся что карточки поверх фона */
+  margin-bottom: 15px; /* Отступ между карточками */
 }
 .character-card:hover {
   border-color: #61afef;

@@ -224,6 +224,13 @@ export default {
     now: new Date(),
     interval: null,
     containerWidth: 1000,
+    // Оптимизация обновлений
+    _lastUpdateTime: 0,
+    _updateThrottle: 5000, // Обновляем максимум раз в 5 секунд
+    _resizeTimeout: null,
+    // Кэш для layoutJobs
+    _layoutCache: new Map(),
+    _layoutCacheKey: null,
   }),
   watch: {
     "eventBus.scroll": "handleExternalScroll",
@@ -338,13 +345,32 @@ export default {
       return this.characters.some((c) => this.jobs[c.character_id]?.length > 0);
     },
     processedJobs() {
+      // Создаем ключ кэша на основе данных
+      const cacheKey = `${this.characters.length}-${
+        Object.keys(this.jobs).length
+      }-${this.scaleMode}-${this.now.getTime()}`;
+
+      if (this._layoutCacheKey === cacheKey && this._layoutCache.size > 0) {
+        return Object.fromEntries(this._layoutCache);
+      }
+
       const result = {};
       for (const char of this.characters) {
-        if (this.jobs[char.character_id])
-          result[char.character_id] = this.layoutJobs(
-            this.jobs[char.character_id]
-          );
+        if (this.jobs[char.character_id]) {
+          const jobs = this.jobs[char.character_id];
+          const cacheKeyForChar = `${char.character_id}-${jobs.length}-${this.scaleMode}`;
+
+          if (this._layoutCache.has(cacheKeyForChar)) {
+            result[char.character_id] = this._layoutCache.get(cacheKeyForChar);
+          } else {
+            const layout = this.layoutJobs(jobs);
+            result[char.character_id] = layout;
+            this._layoutCache.set(cacheKeyForChar, layout);
+          }
+        }
       }
+
+      this._layoutCacheKey = cacheKey;
       return result;
     },
     tooltipStyle() {
@@ -457,6 +483,9 @@ export default {
     },
     setScale(mode) {
       this.scaleMode = mode;
+      // Очищаем кэш при смене масштаба
+      this._layoutCache.clear();
+      this._layoutCacheKey = null;
       // Обновляем позиции индикаторов при смене масштаба
       this.$nextTick(() => {
         this.updateIndicatorPositions();
@@ -734,24 +763,39 @@ export default {
       this.tooltip.visible = false;
     },
     updateTime() {
+      const now = Date.now();
+      // Throttle обновления времени
+      if (now - this._lastUpdateTime < this._updateThrottle) {
+        return;
+      }
+
       this.now = new Date();
+      this._lastUpdateTime = now;
+
       // Обновляем позиции индикаторов при изменении времени
       this.$nextTick(() => {
         this.updateIndicatorPositions();
       });
     },
     updateContainerWidth() {
-      if (this.$el) {
-        this.containerWidth = this.$el.clientWidth;
-        // Обновляем позиции индикаторов при изменении размера контейнера
-        this.$nextTick(() => {
-          this.updateIndicatorPositions();
-        });
+      // Debounce обновления размера контейнера
+      if (this._resizeTimeout) {
+        clearTimeout(this._resizeTimeout);
       }
+
+      this._resizeTimeout = setTimeout(() => {
+        if (this.$el) {
+          this.containerWidth = this.$el.clientWidth;
+          // Обновляем позиции индикаторов при изменении размера контейнера
+          this.$nextTick(() => {
+            this.updateIndicatorPositions();
+          });
+        }
+      }, 100); // 100ms debounce
     },
   },
   mounted() {
-    this.interval = setInterval(this.updateTime, 1000);
+    this.interval = setInterval(this.updateTime, 5000); // Обновляем каждые 5 секунд
     this.$nextTick(() => {
       this.updateContainerWidth();
       window.addEventListener("resize", this.updateContainerWidth);
@@ -766,6 +810,13 @@ export default {
   },
   beforeUnmount() {
     clearInterval(this.interval);
+    if (this._resizeTimeout) {
+      clearTimeout(this._resizeTimeout);
+    }
+    // Очищаем кэш
+    this._layoutCache.clear();
+    this._layoutCacheKey = null;
+
     window.removeEventListener("resize", this.updateContainerWidth);
     this.$el.removeEventListener("scroll", this.handleScroll, true);
 

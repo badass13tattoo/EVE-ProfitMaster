@@ -82,6 +82,7 @@ import JobsTimeline from "@/components/JobsTimeline.vue";
 import ProjectView from "@/components/ProjectView.vue";
 import { mockCharacters, mockActivities, mockJobs } from "@/mock/mockData.js";
 import { dataCache } from "@/utils/cache.js";
+import { dataLoader } from "@/utils/dataLoader.js";
 import { reactive } from "vue";
 export default {
   name: "HomeView",
@@ -110,6 +111,11 @@ export default {
     apiBaseUrl: "http://localhost:5000", // Используем локальный сервер
     fallbackApiUrl: "https://eve-profitmaster.onrender.com", // Fallback URL
     _cachedApiUrl: null, // Кэшированный рабочий API URL
+    // Кэш для computed свойств
+    _allJobsCache: null,
+    _allJobsCacheKey: null,
+    _filteredJobsCache: null,
+    _filteredJobsCacheKey: null,
     navigationItems: [
       {
         key: "characters",
@@ -126,8 +132,17 @@ export default {
     ],
   }),
   computed: {
-    // Объединенные работы (обычные + PI)
+    // Объединенные работы (обычные + PI) с мемоизацией
     allJobs() {
+      // Создаем ключ для кэширования на основе данных
+      const cacheKey = `${this.characters.length}-${
+        Object.keys(this.jobs).length
+      }-${Object.keys(this.piJobs).length}`;
+
+      if (this._allJobsCache && this._allJobsCacheKey === cacheKey) {
+        return this._allJobsCache;
+      }
+
       const combined = {};
       for (const character of this.characters) {
         const characterId = character.character_id;
@@ -137,15 +152,30 @@ export default {
         // Объединяем все работы
         combined[characterId] = [...regularJobs, ...piJobs];
       }
+
+      // Кэшируем результат
+      this._allJobsCache = combined;
+      this._allJobsCacheKey = cacheKey;
       return combined;
     },
 
     filteredJobs() {
       if (!this.selectedCharacterId) return this.allJobs;
-      return {
+
+      // Кэшируем отфильтрованные работы
+      const cacheKey = `${this.selectedCharacterId}-${this._allJobsCacheKey}`;
+      if (this._filteredJobsCache && this._filteredJobsCacheKey === cacheKey) {
+        return this._filteredJobsCache;
+      }
+
+      const result = {
         [this.selectedCharacterId]:
           this.allJobs[this.selectedCharacterId] || [],
       };
+
+      this._filteredJobsCache = result;
+      this._filteredJobsCacheKey = cacheKey;
+      return result;
     },
   },
   methods: {
@@ -246,29 +276,24 @@ export default {
         const workingApiUrl = await this.getWorkingApiUrl();
         console.log("Используем API:", workingApiUrl);
 
-        // Загружаем персонажей
-        const charactersResponse = await fetch(
+        // Загружаем персонажей с кэшированием
+        this.characters = await dataLoader.load(
           `${workingApiUrl}/get_characters`
         );
-        if (charactersResponse.ok) {
-          this.characters = await charactersResponse.json();
-        }
 
-        // Загружаем активности для каждого персонажа
+        // Загружаем активности для каждого персонажа параллельно
         this.activities = {};
-        for (const character of this.characters) {
-          const detailsResponse = await fetch(
-            `${workingApiUrl}/get_character_details/${character.character_id}`
-          );
-          if (detailsResponse.ok) {
-            this.activities[character.character_id] =
-              await detailsResponse.json();
+        const activityPromises = this.characters.map(async (character) => {
+          try {
+            const activity = await dataLoader.load(
+              `${workingApiUrl}/get_character_details/${character.character_id}`
+            );
+            this.activities[character.character_id] = activity;
 
             // Загружаем дополнительные данные для персонажа
             await this.loadCharacterDetails(character.character_id);
-          } else if (detailsResponse.status === 401) {
-            const errorData = await detailsResponse.json();
-            if (errorData.requires_reauth) {
+          } catch (error) {
+            if (error.message.includes("401")) {
               console.warn(
                 `Character ${character.character_name} requires re-authentication`
               );
@@ -281,78 +306,74 @@ export default {
               );
             }
           }
-        }
+        });
 
-        // Загружаем работы
-        const jobsResponse = await fetch(`${workingApiUrl}/get_jobs`);
-        if (jobsResponse.ok) {
-          this.jobs = await jobsResponse.json();
-          console.log("Loaded jobs data:", this.jobs);
+        await Promise.allSettled(activityPromises);
 
-          // Проверяем структуру данных для каждого персонажа
-          for (const character of this.characters) {
-            const characterJobs = this.jobs[character.character_id];
-            if (characterJobs && characterJobs.length > 0) {
-              console.log(
-                `Jobs for ${character.character_name}:`,
-                characterJobs[0]
-              );
-              console.log(`Job fields:`, Object.keys(characterJobs[0]));
-            }
+        // Загружаем работы с кэшированием
+        this.jobs = await dataLoader.load(`${workingApiUrl}/get_jobs`);
+        console.log("Loaded jobs data:", this.jobs);
+
+        // Проверяем структуру данных для каждого персонажа
+        for (const character of this.characters) {
+          const characterJobs = this.jobs[character.character_id];
+          if (characterJobs && characterJobs.length > 0) {
+            console.log(
+              `Jobs for ${character.character_name}:`,
+              characterJobs[0]
+            );
+            console.log(`Job fields:`, Object.keys(characterJobs[0]));
           }
         }
 
-        // Загружаем планеты и обрабатываем PI работы
-        for (const character of this.characters) {
+        // Загружаем планеты и обрабатываем PI работы параллельно
+        const planetPromises = this.characters.map(async (character) => {
           try {
-            const planetsResponse = await fetch(
+            const planets = await dataLoader.load(
               `${this.apiBaseUrl}/get_character_planets/${character.character_id}`
             );
-            if (planetsResponse.ok) {
-              const planets = await planetsResponse.json();
-              console.log(
-                `Planets for character ${character.character_id}:`,
-                planets
-              );
+            console.log(
+              `Planets for character ${character.character_id}:`,
+              planets
+            );
 
-              // Сохраняем данные о планетах
-              this.planets[character.character_id] = planets;
+            // Сохраняем данные о планетах
+            this.planets[character.character_id] = planets;
 
-              // Обрабатываем PI работы отдельно
-              this.piJobs[character.character_id] = [];
+            // Обрабатываем PI работы отдельно
+            this.piJobs[character.character_id] = [];
 
-              for (const planet of planets) {
-                if (planet.jobs && planet.jobs.length > 0) {
-                  // Преобразуем работы планет в формат PI работ
-                  const piJobs = planet.jobs.map((job) => ({
-                    ...job,
-                    activity_id: 100, // Специальный ID для PI работ
-                    is_planet_job: true,
-                    planet_name: planet.name,
-                    planet_id: planet.planet_id,
-                    // Добавляем специфичные для PI поля
-                    pi_type: job.type || "extraction", // extraction, production, etc.
-                    cycle_time: job.cycle_time || 3600, // Время цикла в секундах
-                    is_continuous: job.is_continuous || false, // Непрерывная работа
-                  }));
+            for (const planet of planets) {
+              if (planet.jobs && planet.jobs.length > 0) {
+                // Преобразуем работы планет в формат PI работ
+                const piJobs = planet.jobs.map((job) => ({
+                  ...job,
+                  activity_id: 100, // Специальный ID для PI работ
+                  is_planet_job: true,
+                  planet_name: planet.name,
+                  planet_id: planet.planet_id,
+                  // Добавляем специфичные для PI поля
+                  pi_type: job.type || "extraction", // extraction, production, etc.
+                  cycle_time: job.cycle_time || 3600, // Время цикла в секундах
+                  is_continuous: job.is_continuous || false, // Непрерывная работа
+                }));
 
-                  this.piJobs[character.character_id].push(...piJobs);
-                  console.log(
-                    `Added ${piJobs.length} PI jobs for character ${character.character_name} from planet ${planet.name}`
-                  );
-                }
-              }
-
-              // Анализируем планеты, требующие внимания
-              const planetsNeedingAttention = planets.filter(
-                (planet) => planet.needs_attention
-              );
-              if (planetsNeedingAttention.length > 0) {
+                this.piJobs[character.character_id].push(...piJobs);
                 console.log(
-                  `Planets needing attention for character ${character.character_id}:`,
-                  planetsNeedingAttention
+                  `Added ${piJobs.length} PI jobs for character ${character.character_name} from planet ${planet.name}`
                 );
               }
+            }
+
+            // Анализируем планеты, требующие внимания
+            const planetsNeedingAttention = planets.filter(
+              (planet) => planet.needs_attention
+            );
+            if (planetsNeedingAttention.length > 0) {
+              console.log(
+                `Planets needing attention for character ${character.character_id}:`,
+                planetsNeedingAttention
+              );
             }
           } catch (error) {
             console.error(
@@ -360,7 +381,9 @@ export default {
               error
             );
           }
-        }
+        });
+
+        await Promise.allSettled(planetPromises);
 
         console.log("Final jobs data after adding planets:", this.jobs);
         this.isLoggedIn = true;
@@ -389,10 +412,8 @@ export default {
         if (charactersResponse.ok) {
           const newCharacters = await charactersResponse.json();
 
-          // Обновляем только если данные изменились
-          if (
-            JSON.stringify(newCharacters) !== JSON.stringify(this.characters)
-          ) {
+          // Обновляем только если данные изменились (оптимизированное сравнение)
+          if (this.hasCharactersChanged(newCharacters, this.characters)) {
             console.log("Обнаружены изменения в персонажах, обновляем...");
             this.characters = newCharacters;
           }
@@ -408,8 +429,11 @@ export default {
 
             // Обновляем только если данные изменились
             if (
-              JSON.stringify(newActivity) !==
-              JSON.stringify(this.activities[character.character_id])
+              this.hasActivitiesChanged(
+                { [character.character_id]: newActivity },
+                this.activities,
+                character.character_id
+              )
             ) {
               console.log(
                 `Обновляем активности для персонажа ${character.character_name}`
@@ -425,7 +449,7 @@ export default {
           const newJobs = await jobsResponse.json();
 
           // Обновляем только если данные изменились
-          if (JSON.stringify(newJobs) !== JSON.stringify(this.jobs)) {
+          if (this.hasJobsChanged(newJobs, this.jobs)) {
             console.log("Обнаружены изменения в работах, обновляем...");
             this.jobs = newJobs;
           }
@@ -605,6 +629,7 @@ export default {
         )
       ) {
         dataCache.clearCache();
+        dataLoader.clearCache();
         alert("Кэш очищен");
       }
     },
@@ -729,6 +754,73 @@ export default {
         this.stopAutoUpdate();
         console.log("Окно неактивно более 15 минут, остановка обновлений");
       }
+    },
+
+    // Оптимизированные методы сравнения данных
+    hasCharactersChanged(newChars, oldChars) {
+      if (newChars.length !== oldChars.length) return true;
+
+      for (let i = 0; i < newChars.length; i++) {
+        const newChar = newChars[i];
+        const oldChar = oldChars[i];
+        if (
+          !oldChar ||
+          newChar.character_id !== oldChar.character_id ||
+          newChar.character_name !== oldChar.character_name
+        ) {
+          return true;
+        }
+      }
+      return false;
+    },
+
+    hasActivitiesChanged(newActivities, oldActivities, characterId) {
+      const newActivity = newActivities[characterId];
+      const oldActivity = oldActivities[characterId];
+
+      if (!newActivity && !oldActivity) return false;
+      if (!newActivity || !oldActivity) return true;
+
+      // Сравниваем только ключевые поля
+      return (
+        newActivity.lines?.manufacturing?.used !==
+          oldActivity.lines?.manufacturing?.used ||
+        newActivity.lines?.research?.used !==
+          oldActivity.lines?.research?.used ||
+        newActivity.lines?.reactions?.used !==
+          oldActivity.lines?.reactions?.used ||
+        newActivity.planets?.used !== oldActivity.planets?.used
+      );
+    },
+
+    hasJobsChanged(newJobs, oldJobs) {
+      const newKeys = Object.keys(newJobs);
+      const oldKeys = Object.keys(oldJobs);
+
+      if (newKeys.length !== oldKeys.length) return true;
+
+      for (const key of newKeys) {
+        const newJobList = newJobs[key];
+        const oldJobList = oldJobs[key];
+
+        if (!oldJobList || newJobList.length !== oldJobList.length) return true;
+
+        // Сравниваем только ID и статус работ
+        for (let i = 0; i < newJobList.length; i++) {
+          const newJob = newJobList[i];
+          const oldJob = oldJobList[i];
+
+          if (
+            !oldJob ||
+            newJob.job_id !== oldJob.job_id ||
+            newJob.status !== oldJob.status ||
+            newJob.end_date !== oldJob.end_date
+          ) {
+            return true;
+          }
+        }
+      }
+      return false;
     },
 
     // Очистка базы данных
