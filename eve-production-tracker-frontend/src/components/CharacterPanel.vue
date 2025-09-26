@@ -29,8 +29,8 @@
             <LazyImage
               :src="getCharacterPortrait(char.character_id)"
               :alt="char.character_name"
-              :width="64"
-              :height="64"
+              :width="96"
+              :height="96"
               class="character-portrait"
             />
           </div>
