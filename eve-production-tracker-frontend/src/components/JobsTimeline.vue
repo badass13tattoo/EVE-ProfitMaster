@@ -19,8 +19,6 @@
     </div>
     <div
       class="timeline-scroll-wrapper"
-      ref="timelineScrollWrapper"
-      @scroll="$emit('scroll', $event)"
       :class="{ 'is-locked': selectedCharacterId }"
     >
       <div v-if="isLoading" class="loading-indicator">Data loading...</div>
@@ -127,7 +125,7 @@
 export default {
   name: "JobsTimeline",
   props: ["jobs", "characters", "isLoading", "selectedCharacterId"],
-  emits: ["scroll"],
+  emits: [],
   data: () => ({
     scaleMode: "week",
     tooltip: { visible: false, job: null, x: 0, y: 0 },
@@ -404,9 +402,6 @@ export default {
       if (this.$refs.timelineScrollWrapper)
         this.containerWidth = this.$refs.timelineScrollWrapper.clientWidth;
     },
-    setScrollTop(scrollTop) {
-      this.$refs.timelineScrollWrapper.scrollTop = scrollTop;
-    },
   },
   mounted() {
     this.interval = setInterval(this.updateTime, 1000);
@@ -452,7 +447,6 @@ export default {
 }
 .timeline-scroll-wrapper {
   flex-grow: 1;
-  overflow: auto;
   padding-left: 20px;
   box-sizing: border-box;
 }
@@ -462,6 +456,7 @@ export default {
 .timeline-wrapper {
   position: relative;
   min-height: 100%;
+  gap: 15px;
 }
 .time-headers {
   position: sticky;
@@ -491,9 +486,15 @@ export default {
 }
 .character-rows-container {
   padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  flex-grow: 1;
 }
 .character-row-group {
+  height: 120px;
   min-height: 120px;
+  max-height: 120px;
   box-sizing: border-box;
   border-bottom: 1px solid #3c414d;
   transition: all 0.3s ease-in-out;
@@ -513,10 +514,10 @@ export default {
   padding-bottom: 0;
   border: none;
 }
-..job-lanes-container {
+.job-lanes-container {
   padding: 15px 0;
-  max-height: 120px;
-  overflow: hidden;
+  max-height: 90px;
+  overflow-y: hidden;
 }
 .expanded-jobs-view {
   padding: 20px;
