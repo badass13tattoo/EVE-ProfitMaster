@@ -800,6 +800,7 @@ html {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
+  padding-top: 20px
   overflow: hidden;
   background-color: #282c34;
 }
@@ -864,6 +865,7 @@ html {
 
 .character-panel-column {
   flex-shrink: 0;
+  padding-bottom: 20px
 }
 
 .timeline-column {
