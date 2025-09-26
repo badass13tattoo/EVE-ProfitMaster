@@ -136,8 +136,8 @@ export default {
 }
 
 .virtualized-item {
-  display: flex;
-  align-items: center;
+  display: block;
+  width: 100%;
   box-sizing: border-box;
 }
 </style>

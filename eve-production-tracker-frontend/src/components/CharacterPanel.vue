@@ -154,9 +154,9 @@ export default {
   border: 2px solid #3c414d;
   cursor: pointer;
   transition: all 0.2s;
-  height: 120px;
-  min-height: 120px;
-  max-height: 120px;
+  height: 60px;
+  min-height: 60px;
+  max-height: 60px;
   box-sizing: border-box;
   position: relative; /* Добавляем для правильного позиционирования */
   z-index: 1; /* Убеждаемся что карточки поверх фона */
@@ -252,7 +252,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: #4e9aef;
+  background-color: #3c414d;
   color: white;
   border: 2px solid transparent;
   padding: 8px 16px;

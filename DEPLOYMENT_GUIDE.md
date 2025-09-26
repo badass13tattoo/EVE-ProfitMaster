@@ -50,12 +50,14 @@ eve-profitmaster-backend/
 ### Установка
 
 1. **Клонирование репозитория**
+
 ```bash
 git clone <repository-url>
 cd eve-profitmaster-backend
 ```
 
 2. **Создание виртуального окружения**
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
@@ -64,12 +66,14 @@ venv\Scripts\activate     # Windows
 ```
 
 3. **Установка зависимостей**
+
 ```bash
 pip install -r requirements.txt
 ```
 
 4. **Настройка переменных окружения**
-Создайте файл `.env`:
+   Создайте файл `.env`:
+
 ```env
 EVE_CLIENT_ID=your_eve_client_id
 EVE_SECRET_KEY=your_eve_secret_key
@@ -79,6 +83,7 @@ FLASK_ENV=development
 ```
 
 5. **Настройка базы данных**
+
 ```bash
 # Создание базы данных
 createdb eve_profitmaster
@@ -88,6 +93,7 @@ python app_new.py
 ```
 
 6. **Запуск приложения**
+
 ```bash
 python app_new.py
 ```
@@ -99,6 +105,7 @@ python app_new.py
 ### Подготовка
 
 1. **Создание аккаунта на Render**
+
    - Зарегистрируйтесь на https://render.com
    - Подключите GitHub репозиторий
 
@@ -110,6 +117,7 @@ python app_new.py
 ### Создание сервисов
 
 1. **Web Service**
+
    - Выберите "New Web Service"
    - Подключите репозиторий
    - Настройки:
@@ -145,6 +153,7 @@ FLASK_ENV=production
 ### Подготовка
 
 1. **Установка Heroku CLI**
+
 ```bash
 # Ubuntu/Debian
 sudo apt-get install heroku
@@ -157,11 +166,13 @@ brew install heroku
 ```
 
 2. **Создание приложения**
+
 ```bash
 heroku create your-app-name
 ```
 
 3. **Добавление PostgreSQL**
+
 ```bash
 heroku addons:create heroku-postgresql:hobby-dev
 ```
@@ -169,11 +180,13 @@ heroku addons:create heroku-postgresql:hobby-dev
 ### Настройка
 
 1. **Создание Procfile**
+
 ```
 web: gunicorn app_new:app
 ```
 
 2. **Настройка переменных окружения**
+
 ```bash
 heroku config:set EVE_CLIENT_ID=your_eve_client_id
 heroku config:set EVE_SECRET_KEY=your_eve_secret_key
@@ -182,6 +195,7 @@ heroku config:set FLASK_ENV=production
 ```
 
 3. **Деплой**
+
 ```bash
 git add .
 git commit -m "Deploy to Heroku"
@@ -199,22 +213,26 @@ git push heroku main
 ### Установка
 
 1. **Обновление системы**
+
 ```bash
 sudo apt update && sudo apt upgrade -y
 ```
 
 2. **Установка Python и зависимостей**
+
 ```bash
 sudo apt install python3 python3-pip python3-venv postgresql postgresql-contrib nginx git
 ```
 
 3. **Настройка PostgreSQL**
+
 ```bash
 sudo -u postgres createuser --interactive
 sudo -u postgres createdb eve_profitmaster
 ```
 
 4. **Клонирование и настройка приложения**
+
 ```bash
 git clone <repository-url>
 cd eve-profitmaster-backend
@@ -224,7 +242,8 @@ pip install -r requirements.txt
 ```
 
 5. **Настройка systemd сервиса**
-Создайте файл `/etc/systemd/system/eve-profitmaster.service`:
+   Создайте файл `/etc/systemd/system/eve-profitmaster.service`:
+
 ```ini
 [Unit]
 Description=EVE Profit Master Backend
@@ -243,7 +262,8 @@ WantedBy=multi-user.target
 ```
 
 6. **Настройка Nginx**
-Создайте файл `/etc/nginx/sites-available/eve-profitmaster`:
+   Создайте файл `/etc/nginx/sites-available/eve-profitmaster`:
+
 ```nginx
 server {
     listen 80;
@@ -257,6 +277,7 @@ server {
 ```
 
 7. **Запуск сервисов**
+
 ```bash
 sudo systemctl enable eve-profitmaster
 sudo systemctl start eve-profitmaster
@@ -305,6 +326,7 @@ curl https://your-app-url/health
 ### Переменные окружения
 
 Никогда не коммитьте файлы с секретными данными:
+
 - `.env`
 - `config.py` с паролями
 - Ключи и токены
@@ -347,14 +369,17 @@ psql eve_profitmaster < backup.sql
 ### Частые проблемы
 
 1. **Ошибка подключения к базе данных**
+
    - Проверьте DATABASE_URL
    - Убедитесь, что PostgreSQL запущен
 
 2. **Ошибка EVE SSO**
+
    - Проверьте EVE_CLIENT_ID и EVE_SECRET_KEY
    - Убедитесь, что callback URL правильный
 
 3. **Ошибка импорта модулей**
+
    - Проверьте PYTHONPATH
    - Убедитесь, что все зависимости установлены
 
@@ -375,27 +400,32 @@ export FLASK_DEBUG=1
 ### Процесс обновления
 
 1. **Создание бэкапа**
+
 ```bash
 pg_dump eve_profitmaster > backup_before_update.sql
 ```
 
 2. **Обновление кода**
+
 ```bash
 git pull origin main
 pip install -r requirements.txt
 ```
 
 3. **Применение миграций** (если есть)
+
 ```bash
 python migrate.py
 ```
 
 4. **Перезапуск сервиса**
+
 ```bash
 sudo systemctl restart eve-profitmaster
 ```
 
 5. **Проверка работоспособности**
+
 ```bash
 curl https://your-app-url/health
 ```

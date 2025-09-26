@@ -32,14 +32,17 @@ EVE Profit Master Backend API предоставляет комплексное 
 ### Аутентификация
 
 #### `GET /login`
+
 Инициирует процесс аутентификации через EVE SSO.
 
 **Ответ:** Перенаправление на EVE SSO
 
 #### `GET /callback`
+
 Обрабатывает callback от EVE SSO.
 
 **Параметры:**
+
 - `code` (string) - Код авторизации
 - `state` (string) - Состояние для безопасности
 
@@ -48,9 +51,11 @@ EVE Profit Master Backend API предоставляет комплексное 
 ### Персонажи
 
 #### `GET /api/characters`
+
 Получает список авторизованных персонажей.
 
 **Ответ:**
+
 ```json
 [
   {
@@ -67,9 +72,11 @@ EVE Profit Master Backend API предоставляет комплексное 
 ```
 
 #### `GET /api/characters/{character_id}/details`
+
 Получает детальную информацию о персонаже включая лимиты активности.
 
 **Ответ:**
+
 ```json
 {
   "lines": {
@@ -94,9 +101,11 @@ EVE Profit Master Backend API предоставляет комплексное 
 ```
 
 #### `GET /api/characters/{character_id}/jobs`
+
 Получает данные о работах персонажа.
 
 **Ответ:**
+
 ```json
 {
   "123456789": [
@@ -118,9 +127,11 @@ EVE Profit Master Backend API предоставляет комплексное 
 ```
 
 #### `GET /api/characters/{character_id}/planets`
+
 Получает данные о планетах персонажа.
 
 **Ответ:**
+
 ```json
 [
   {
@@ -155,29 +166,37 @@ EVE Profit Master Backend API предоставляет комплексное 
 ```
 
 #### `GET /api/characters/{character_id}/skills`
+
 Получает навыки персонажа.
 
 #### `GET /api/characters/{character_id}/blueprints`
+
 Получает чертежи персонажа.
 
 #### `GET /api/characters/{character_id}/assets`
+
 Получает активы персонажа.
 
 #### `GET /api/characters/{character_id}/portrait`
+
 Получает URL портрета персонажа.
 
 #### `DELETE /api/characters/{character_id}`
+
 Удаляет персонажа из базы данных.
 
 ### Рыночные данные
 
 #### `GET /api/market/types/{type_id}/prices`
+
 Получает цены для конкретного типа предмета.
 
 **Параметры:**
+
 - `region_id` (int, optional) - ID региона (по умолчанию 10000002)
 
 **Ответ:**
+
 ```json
 {
   "type_id": 34,
@@ -191,43 +210,55 @@ EVE Profit Master Backend API предоставляет комплексное 
 ```
 
 #### `GET /api/market/regions/{region_id}/orders`
+
 Получает рыночные ордера для региона.
 
 **Параметры:**
+
 - `type_id` (int, optional) - ID типа предмета
 
 #### `GET /api/market/regions/{region_id}/prices`
+
 Получает цены для региона.
 
 #### `GET /api/market/calculate-value`
+
 Вычисляет рыночную стоимость количества предметов.
 
 **Параметры:**
+
 - `type_id` (int) - ID типа предмета
 - `quantity` (int) - Количество
 - `region_id` (int, optional) - ID региона
 
 #### `GET /api/market/regions/{region_id}`
+
 Получает информацию о регионе.
 
 #### `GET /api/market/groups`
+
 Получает группы рынка.
 
 #### `GET /api/market/groups/{group_id}`
+
 Получает информацию о группе рынка.
 
 ### Утилиты
 
 #### `GET /api/types/{type_id}`
+
 Получает информацию о типе предмета.
 
 #### `GET /api/locations/{location_id}`
+
 Получает информацию о локации.
 
 #### `GET /health`
+
 Проверка состояния API.
 
 #### `POST /api/reset`
+
 Сброс базы данных (удаление всех пользователей).
 
 ## Legacy Endpoints
@@ -272,6 +303,7 @@ API использует многоуровневое кэширование:
 2. **База данных** - Долгосрочное хранение кэшированных данных
 
 Время жизни кэша:
+
 - Навыки: 1 час
 - Работы: 5 минут
 - Планеты: 30 минут
