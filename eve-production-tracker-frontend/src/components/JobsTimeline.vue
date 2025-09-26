@@ -21,32 +21,25 @@
       class="timeline-scroll-wrapper"
       :class="{ 'is-locked': selectedCharacterId }"
     >
-      <div v-if="isLoading" class="timeline-status loading-indicator">
-        Data loading...
-      </div>
-      <div v-else-if="!hasJobs" class="timeline-status no-jobs-placeholder">
-        No jobs.
-      </div>
-
+      <div v-if="isLoading" class="loading-indicator">Data loading...</div>
+      <div v-else-if="!hasJobs" class="no-jobs-placeholder">No jobs.</div>
       <div
         v-else
         class="timeline-wrapper"
-        ref="timelineWrapper"
         :style="{ width: timelineWidth + 'px' }"
       >
-        <div class="time-headers">
-          <div
-            v-for="marker in timeScale"
-            :key="marker.timestamp"
-            class="time-header-item"
-            :style="{ left: marker.left + 'px' }"
-          >
-            <span>{{ marker.label }}</span>
-          </div>
-        </div>
+        <div class="time-headers"></div>
         <div class="current-time-line"></div>
 
+        <div v-if="isLoading" class="loading-indicator">Data loading...</div>
+
+        <div v-else-if="!hasJobs" class="no-jobs-placeholder">
+          No jobs to display.
+        </div>
+        <div v-else class="character-rows-container"></div>
+        <div class="current-time-line"></div>
         <div class="character-rows-container">
+          <!-- Бордерлайны для разделения персонажей -->
           <div
             v-for="(char, index) in characters"
             :key="`border-${char.character_id}`"
@@ -125,6 +118,7 @@
               </div>
             </div>
             <div v-else class="job-lanes-container">
+              <!-- Контейнер для индикаторов завершенных работ -->
               <div class="completed-jobs-indicators">
                 <div
                   v-for="job in getCompletedJobs(char.character_id)"
@@ -145,6 +139,7 @@
                 </div>
               </div>
 
+              <!-- Планеты персонажа как работы -->
               <div v-if="planets[char.character_id]" class="planets-lane">
                 <div
                   v-for="planet in planets[char.character_id]"
@@ -178,6 +173,7 @@
                 </div>
               </div>
 
+              <!-- Индустриальные работы персонажа -->
               <div
                 v-if="industryJobs[char.character_id]"
                 class="industry-jobs-lane"
@@ -253,16 +249,19 @@
       </div>
     </div>
     <div v-if="tooltip.visible" class="tooltip" :style="tooltipStyle">
+      <!-- Тултип для планет -->
       <div
         v-if="tooltip.type === 'planet'"
         v-html="getPlanetTooltipContent(tooltip.planet)"
       ></div>
 
+      <!-- Тултип для индустриальных работ -->
       <div
         v-else-if="tooltip.type === 'industry'"
         v-html="getIndustryJobTooltipContent(tooltip.job)"
       ></div>
 
+      <!-- Тултип для обычных работ -->
       <div v-else>
         <strong>{{ tooltip.job.product_name }}</strong
         ><br />
@@ -270,6 +269,7 @@
         ><br /><br />
         Type: {{ getJobType(tooltip.job.activity_id) }}<br />
 
+        <!-- Специальная информация для PI работ -->
         <span v-if="tooltip.job.activity_id === 100">
           <div v-if="tooltip.job.planet_name">
             <strong>Planet:</strong> {{ tooltip.job.planet_name }}<br />
@@ -295,6 +295,7 @@
           </span>
         </span>
 
+        <!-- Обычные планетные работы -->
         <span v-else-if="tooltip.job.is_planet_job">
           <span
             v-if="tooltip.job.status === 'needs_attention'"
@@ -307,6 +308,7 @@
           </span>
         </span>
 
+        <!-- Обычные работы -->
         <span v-else>
           completion in: {{ getTimeRemaining(tooltip.job.end_date) }}
         </span>
@@ -510,9 +512,7 @@ export default {
   },
   methods: {
     getCharacterRowStyle(characterId) {
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ #1: Определяем BORDER_STYLE
       const BORDER_STYLE = "1px solid #3c414d";
-
       if (this.selectedCharacterId === characterId) {
         return {
           height: `${this.focusRowHeight}px`,
@@ -532,20 +532,16 @@ export default {
           borderBottom: BORDER_STYLE,
         };
       }
-      // Стандартный вид:
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ #1: Фиксируем высоту 120px и добавляем нижнюю границу
+      // Стандартный вид: разрешаем динамический рост для показа всех работ
       return {
-        height: `${this.CARD_HEIGHT}px`,
-        minHeight: `${this.CARD_HEIGHT}px`,
-        maxHeight: `${this.CARD_HEIGHT}px`,
-        margin: "0",
-        borderBottom: BORDER_STYLE, // Добавлен border-bottom для выравнивания
+        height: "auto", // ИЗМЕНЕНИЕ: Разрешаем динамический рост
+        minHeight: `${this.TOTAL_ROW_HEIGHT}px`, // Сохраняем минимальную высоту для выравнивания
+        // maxHeight удален для разрешения роста
+        margin: "0", // Убеждаемся, что нет лишних маржинов
       };
     },
 
     getCharacterBorderStyle(characterId, index) {
-      // Здесь BORDER_STYLE не вызывал ошибки, но используем для консистентности
-      const BORDER_STYLE = "1px solid #3c414d";
       // Вычисляем позицию верхней границы таймлайна персонажа
       let topPosition = 10; // padding-top контейнера
 
@@ -560,17 +556,18 @@ export default {
           // Свернутый персонаж - не добавляем высоту
           continue;
         } else {
-          // Логика определения высоты строки в нормальном режиме
-          // Учитываем высоту карточки (120px) и gap (15px) = 135px
-          // NOTE: В стилях character-rows-container есть gap: 15px, который автоматически добавляет отступ.
-          // В CharacterPanel, высота фиксирована 120px.
-          topPosition += this.CARD_HEIGHT + this.GAP_HEIGHT;
-          continue; // Продолжаем, не возвращаем стиль отсюда
+          return {
+            height: "120px",
+            minHeight: "120px",
+            maxHeight: "120px",
+            margin: "0",
+            borderBottom: "none",
+          };
         }
       }
 
       // Определяем высоту текущего персонажа
-      let characterHeight = this.CARD_HEIGHT; // Используем константу
+      let characterHeight = this.TOTAL_ROW_HEIGHT; // Используем константу
       if (this.selectedCharacterId === characterId) {
         characterHeight = this.focusRowHeight;
       } else if (
@@ -587,8 +584,8 @@ export default {
         left: "0",
         right: "0",
         height: `${characterHeight}px`,
-        borderTop: BORDER_STYLE, // Верхняя граница - тонкая серая
-        borderBottom: BORDER_STYLE, // Нижняя граница - тонкая серая
+        borderTop: "1px solid #3c414d", // Верхняя граница - тонкая серая
+        borderBottom: "1px solid #3c414d", // Нижняя граница - тонкая серая
         backgroundColor: "rgba(60, 65, 77, 0.05)", // Легкий серый фон
         zIndex: 5,
         pointerEvents: "none",
@@ -614,11 +611,8 @@ export default {
 
     // Обновление позиций индикаторов
     updateIndicatorPositions() {
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ #2: Используем $refs вместо $el
-      if (!this.$refs.timelineWrapper) return;
-
       // Находим все контейнеры индикаторов и обновляем их позиции
-      const indicatorContainers = this.$refs.timelineWrapper.querySelectorAll(
+      const indicatorContainers = this.$el.querySelectorAll(
         ".completed-jobs-indicators"
       );
       indicatorContainers.forEach((container) => {
@@ -806,8 +800,10 @@ export default {
           content += `• ${timeToExpiry}<br>`;
         }
       }
+
       return content;
     },
+
     getPlanetTypeName(planetType) {
       const types = {
         1: "Temperate",
@@ -836,17 +832,22 @@ export default {
     getIndustryJobLanes(characterId) {
       const jobs = this.industryJobs[characterId] || [];
       if (!jobs.length) return [];
+
       // Сортируем работы по времени начала
       const sortedJobs = [...jobs].sort(
         (a, b) => new Date(a.start_date) - new Date(b.start_date)
       );
+
       const lanes = [];
+
       // Определяем временные границы видимой области
       const viewStart = this.now;
       const viewEnd = new Date(this.now.getTime() + this.totalDurationMs);
+
       for (const job of sortedJobs) {
         const jobEndDate = new Date(job.end_date);
         const jobStartDate = new Date(job.start_date);
+
         // Пропускаем работы за пределами видимой области
         if (
           jobEndDate < viewStart &&
@@ -854,6 +855,7 @@ export default {
         )
           continue;
         if (jobStartDate > viewEnd) continue;
+
         let placed = false;
         // Ищем подходящую линию
         for (const lane of lanes) {
@@ -867,33 +869,40 @@ export default {
               break;
             }
           }
+
           if (!hasOverlap) {
             lane.push(job);
             placed = true;
             break;
           }
         }
+
         if (!placed) {
           lanes.push([job]);
         }
       }
+
       return lanes;
     },
+
     getIndustryJobStyle(job) {
       const startOffsetMs = Math.max(
         0,
         new Date(job.start_date).getTime() - this.now.getTime()
       );
       const endOffsetMs = new Date(job.end_date).getTime() - this.now.getTime();
+
       const left = (startOffsetMs / 3600e3) * this.pixelsPerHour;
       const endPosition = (endOffsetMs / 3600e3) * this.pixelsPerHour;
       const width = Math.max(2, endPosition - left);
+
       return {
         transform: `translateX(${left}px)`,
         width: `${width}px`,
         height: "10px",
       };
     },
+
     getIndustryJobColor(activityId) {
       const colors = {
         1: "#E1AA36", // Manufacturing
@@ -908,6 +917,7 @@ export default {
       };
       return colors[activityId] || "#7f8c8d";
     },
+
     showIndustryJobTooltip(job, event) {
       const rect = event.target.getBoundingClientRect();
       this.tooltip = {
@@ -918,6 +928,7 @@ export default {
         type: "industry",
       };
     },
+
     getIndustryJobTooltipContent(job) {
       let content = `<strong>${job.product_name}</strong><br>`;
       content += `Тип: ${
@@ -928,6 +939,7 @@ export default {
       content += `Безопасность: ${
         job.system_security ? job.system_security.toFixed(2) : "Unknown"
       }<br>`;
+
       if (job.is_completed) {
         content += `<span style="color: #4CAF50;">✅ Завершено</span><br>`;
       } else if (job.is_paused) {
@@ -937,9 +949,11 @@ export default {
         content += `Осталось: ${timeRemaining}<br>`;
         content += `Прогресс: ${Math.round(job.progress_percentage || 0)}%<br>`;
       }
+
       content += `Длительность: ${job.duration_hours || 0}ч<br>`;
       content += `Стоимость: ${(job.cost || 0).toLocaleString()} ISK<br>`;
       content += `Рангов: ${job.runs || 1}<br>`;
+
       if (job.priority) {
         const priorityColors = {
           high: "#f44336",
@@ -950,6 +964,7 @@ export default {
           priorityColors[job.priority]
         };">${job.priority.toUpperCase()}</span><br>`;
       }
+
       if (job.risk_level) {
         const riskColors = {
           high: "#f44336",
@@ -960,6 +975,7 @@ export default {
           riskColors[job.risk_level]
         };">${job.risk_level.toUpperCase()}</span><br>`;
       }
+
       return content;
     },
 
@@ -974,7 +990,6 @@ export default {
       }
       return null;
     },
-
     handleExternalScroll(scrollData) {
       if (scrollData.source === "timeline") return;
       if (this.$refs.timelineScrollWrapper) {
@@ -1000,27 +1015,34 @@ export default {
     },
     layoutJobs(jobs) {
       if (!jobs?.length) return [];
+
       const sortedJobs = [...jobs]
         .map((j) => ({ ...j, hasOverlap: false }))
         .sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+
       const lanes = [];
+
       // Определяем временные границы видимой области
       const viewStart = this.now;
       const viewEnd = new Date(this.now.getTime() + this.totalDurationMs);
+
       for (const job of sortedJobs) {
         // Показываем работы которые:
         // 1. Еще не завершились (активные)
         // 2. Завершились недавно и еще видны в области просмотра
         const jobEndDate = new Date(job.end_date);
         const jobStartDate = new Date(job.start_date);
+
         // Пропускаем работы которые завершились слишком давно (за пределами видимой области слева)
         if (
           jobEndDate < viewStart &&
           viewStart - jobEndDate > this.totalDurationMs / 4
         )
           continue;
+
         // Пропускаем работы которые начнутся слишком поздно (за пределами видимой области справа)
         if (jobStartDate > viewEnd) continue;
+
         let placed = false;
         // Попробуем найти подходящую линию для работы
         for (const lane of lanes) {
@@ -1035,30 +1057,38 @@ export default {
               break;
             }
           }
+
           if (!hasOverlap) {
             lane.push(job);
             placed = true;
             break;
           }
         }
+
         // Если не удалось разместить в существующих линиях, создаем новую
         if (!placed) {
           lanes.push([job]);
         }
       }
+
       if (this.selectedCharacterId) {
         return lanes;
       }
+
       // Определяем максимальное количество линий в зависимости от масштаба
       const MAX_LANES =
         this.scaleMode === "month" ? 15 : this.scaleMode === "week" ? 8 : 5;
+
       if (lanes.length > MAX_LANES) {
         const newLanes = lanes.slice(0, MAX_LANES);
+
         // Распределяем оставшиеся работы по существующим линиям
         for (let i = MAX_LANES; i < lanes.length; i++) {
           const jobsToPlace = lanes[i];
+
           for (const job of jobsToPlace) {
             let placed = false;
+
             // Пытаемся разместить в существующих линиях
             for (const lane of newLanes) {
               let hasOverlap = false;
@@ -1071,401 +1101,740 @@ export default {
                   break;
                 }
               }
+
               if (!hasOverlap) {
                 lane.push(job);
                 placed = true;
                 break;
               }
             }
+
+            // Если не удалось разместить, добавляем в первую линию и помечаем как перекрывающуюся
             if (!placed) {
-              // Если нигде не поместилось, просто добавляем в последнюю линию (с перекрытием)
-              newLanes[newLanes.length - 1].push(job);
+              newLanes[0].push(job);
               job.hasOverlap = true;
             }
           }
         }
+
+        // Сортируем работы в каждой линии по времени начала
+        for (const lane of newLanes) {
+          lane.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+        }
+
+        // Помечаем перекрывающиеся работы
+        for (const lane of newLanes) {
+          for (let i = 0; i < lane.length; i++) {
+            for (let j = i + 1; j < lane.length; j++) {
+              const job1 = lane[i];
+              const job2 = lane[j];
+              if (
+                new Date(job1.start_date) < new Date(job2.end_date) &&
+                new Date(job2.start_date) < new Date(job1.end_date)
+              ) {
+                job1.hasOverlap = true;
+                job2.hasOverlap = true;
+              }
+            }
+          }
+        }
+
         return newLanes;
       }
 
       return lanes;
     },
-
-    // *** МЕТОДЫ, КОТОРЫЕ ТРЕБУЮТ РЕАЛИЗАЦИИ ВАШЕЙ ЛОГИКИ ***
-    getTimeRemaining(endDate) {
-      if (!endDate) return "N/A";
-      const end = new Date(endDate);
-      const diffMs = end.getTime() - this.now.getTime();
-
-      if (diffMs < 0) return "Completed";
-
-      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      const hours = Math.floor(
-        (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-      );
-      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-      if (days > 0) return `${days}d ${hours}h`;
-      if (hours > 0) return `${hours}h ${minutes}m`;
-      return `${minutes}m`;
+    // Получить завершенные работы для персонажа
+    getCompletedJobs(characterId) {
+      if (!this.jobs[characterId]) return [];
+      return this.jobs[characterId].filter((job) => this.isJobCompleted(job));
     },
+
+    // Стиль для индикатора завершенной работы
+    getCompletedJobIndicatorStyle(job) {
+      // Позиция end_date относительно текущего времени (может быть отрицательной)
+      const endOffsetMs = new Date(job.end_date).getTime() - this.now.getTime();
+      const left = (endOffsetMs / 3600e3) * this.pixelsPerHour;
+
+      // Адаптивный размер квадратика в зависимости от масштаба
+      const baseSize = Math.max(12, Math.min(24, this.pixelsPerHour * 0.8));
+      const size = `${baseSize}px`;
+
+      // Получаем ширину контейнера строки персонажа
+      const containerWidth = this.containerWidth || 1000;
+
+      // Вычисляем позицию относительно левого края строки персонажа
+      // Если работа завершилась в прошлом (left < 0), показываем у левого края
+      // Если работа завершилась в будущем, показываем в соответствующей позиции
+      let indicatorLeft = left;
+
+      // Ограничиваем позицию границами контейнера
+      const maxLeft = containerWidth - parseInt(size);
+      const clampedLeft = Math.max(0, Math.min(indicatorLeft, maxLeft));
+
+      // Определяем видимость индикатора
+      const isVisible = left >= -parseInt(size) && left <= containerWidth;
+
+      return {
+        left: `${clampedLeft}px`,
+        width: size,
+        height: size,
+        backgroundColor: this.getJobColor(job.activity_id),
+        opacity: isVisible ? 1 : 0,
+        // Добавляем дополнительную видимость для завершенных работ
+        visibility: isVisible ? "visible" : "hidden",
+        // Обеспечиваем правильное позиционирование относительно строки
+        position: "absolute",
+      };
+    },
+
     getJobStyle(job) {
+      // Для завершенных работ не показываем в обычных линиях
+      if (this.isJobCompleted(job)) {
+        return {
+          display: "none",
+        };
+      }
+
+      // Для активных работ показываем линию
       const startOffsetMs = Math.max(
         0,
         new Date(job.start_date).getTime() - this.now.getTime()
       );
       const endOffsetMs = new Date(job.end_date).getTime() - this.now.getTime();
-      const left = (startOffsetMs / 3600e3) * this.pixelsPerHour;
+
+      // Если работа уже началась, but not completed, показываем только оставшуюся часть
+      const left =
+        startOffsetMs === 0 ? 0 : (startOffsetMs / 3600e3) * this.pixelsPerHour;
       const endPosition = (endOffsetMs / 3600e3) * this.pixelsPerHour;
       const width = Math.max(2, endPosition - left);
 
       return {
         transform: `translateX(${left}px)`,
         width: `${width}px`,
-        // height: job.is_planet_job ? '10px' : '12px' // ИСПОЛЬЗУЕТСЯ в getPlanetJobStyle
       };
     },
-    getJobColor(activityId) {
-      const colors = {
-        1: "#61aef5", // Manufacturing
-        3: "#8bc34a", // Researching Technology
-        4: "#8bc34a", // Researching Time Efficiency
-        5: "#8bc34a", // Researching Material Efficiency
-        6: "#8bc34a", // Copying
-        9: "#ff9800", // Invention
-        100: "#f44336", // PI (виртуальный ID)
-        101: "#37d8d0", // PI (виртуальный ID)
-      };
-      return colors[activityId] || "#7f8c8d";
+    getJobColor(id) {
+      return (
+        {
+          1: "#E1AA36", // Manufacturing
+          3: "#239BA7", // Copying
+          4: "#239BA7", // Material Efficiency
+          5: "#239BA7", // Time Efficiency
+          6: "#7ADAA5", // Reactions
+          7: "#FF6B6B", // Planet Interaction
+          8: "#239BA7", // Invention
+          100: "#9B59B6", // PI Jobs - специальный цвет для планетарной индустрии
+        }[id] || "#7f8c8d"
+      );
     },
-    getJobType(activityId) {
-      const types = {
-        1: "Manufacturing",
-        3: "Tech Research",
-        4: "Time Eff. Research",
-        5: "Mat. Eff. Research",
-        6: "Copying",
-        9: "Invention",
-        100: "Planetary Industry (PI)",
-      };
-      return types[activityId] || "Other";
-    },
-    getCompletedJobs(characterId) {
-      return (this.jobs[characterId] || []).filter(
-        (job) => new Date(job.end_date) < this.now
+    getJobType(id) {
+      return (
+        {
+          1: "Manufacturing",
+          3: "Copying",
+          4: "Material Efficiency",
+          5: "Time Efficiency",
+          6: "Reactions",
+          7: "Planet Interaction",
+          8: "Invention",
+          100: "Planetary Industry", // PI Jobs
+        }[id] || "Unknown"
       );
     },
     isJobCompleted(job) {
-      return new Date(job.end_date) < this.now;
-    },
-    getCompletedJobIndicatorStyle(job) {
-      const jobEndDate = new Date(job.end_date);
-      const offsetMs = jobEndDate.getTime() - this.now.getTime();
-      const left = (offsetMs / 3600e3) * this.pixelsPerHour;
+      // Для PI работ (activity_id: 100) проверяем статус
+      if (job.activity_id === 100) {
+        return (
+          job.status === "needs_attention" ||
+          job.status === "completed" ||
+          job.status === "ready" ||
+          new Date(job.end_date) <= this.now
+        );
+      }
 
-      // Рассчитываем, как далеко слева он находится
-      const leftPosition = Math.max(0, left);
+      // Для планетных работ проверяем статус
+      if (job.is_planet_job) {
+        return (
+          job.status === "needs_attention" ||
+          job.status === "completed" ||
+          new Date(job.end_date) <= this.now
+        );
+      }
 
-      return {
-        transform: `translateX(${leftPosition}px)`,
-        backgroundColor: this.getJobColor(job.activity_id),
-      };
+      // Для обычных работ проверяем статус и время завершения
+      return job.status === "completed" || new Date(job.end_date) <= this.now;
     },
-    showTooltip(job, event) {
-      const rect = event.target.getBoundingClientRect();
+    getTimeRemaining(endDate) {
+      const s = Math.max(0, (new Date(endDate) - this.now) / 1000);
+      const d = Math.floor(s / 86400);
+      const h = Math.floor(s / 3600) % 24;
+      const m = Math.floor(s / 60) % 60;
+      if (d > 0) return `${d}д ${h}ч`;
+      return `${h}ч ${m}м`;
+    },
+    showTooltip(job, e) {
       this.tooltip = {
         visible: true,
-        job: job,
-        x: rect.left + rect.width / 2,
-        y: rect.top - 10,
-        type: "job",
+        job,
+        x: e.clientX + 15,
+        y: e.clientY + 15,
       };
     },
     hideTooltip() {
-      this.tooltip = { visible: false, job: null, x: 0, y: 0 };
-    },
-    // *** КОНЕЦ МЕТОДОВ, КОТОРЫЕ ТРЕБУЮТ РЕАЛИЗАЦИИ ВАШЕЙ ЛОГИКИ ***
-
-    // *** Vue lifecycle methods ***
-    updateContainerWidth() {
-      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ #2: Используем $refs вместо $el
-      if (!this.$refs.timelineWrapper) return;
-
-      const container = this.$refs.timelineWrapper.parentNode;
-      this.containerWidth = container.clientWidth;
+      this.tooltip.visible = false;
     },
     updateTime() {
-      if (Date.now() - this._lastUpdateTime < this._updateThrottle) return;
+      const now = Date.now();
+      // Throttle обновления времени
+      if (now - this._lastUpdateTime < this._updateThrottle) {
+        return;
+      }
+
       this.now = new Date();
-      this._lastUpdateTime = Date.now();
-      // Вызываем обновление позиций, которое использует $refs
-      this.updateIndicatorPositions();
+      this._lastUpdateTime = now;
+
+      // Обновляем позиции индикаторов при изменении времени
+      this.$nextTick(() => {
+        this.updateIndicatorPositions();
+      });
+    },
+    updateContainerWidth() {
+      // Debounce обновления размера контейнера
+      if (this._resizeTimeout) {
+        clearTimeout(this._resizeTimeout);
+      }
+
+      this._resizeTimeout = setTimeout(() => {
+        if (this.$el) {
+          this.containerWidth = this.$el.clientWidth;
+          // Обновляем позиции индикаторов при изменении размера контейнера
+          this.$nextTick(() => {
+            this.updateIndicatorPositions();
+          });
+        }
+      }, 100); // 100ms debounce
     },
   },
   mounted() {
-    this.updateContainerWidth();
-    // Слушаем горизонтальный скролл на timeline-scroll-wrapper
-    this.$refs.timelineWrapper?.parentNode.addEventListener(
-      "scroll",
-      this.handleScroll
-    );
-    window.addEventListener("resize", this.updateContainerWidth);
-    this.interval = setInterval(this.updateTime, 5000); // Обновляем время каждые 5 сек
-    // Первичное обновление позиций после отрисовки
+    this.interval = setInterval(this.updateTime, 5000); // Обновляем каждые 5 секунд
     this.$nextTick(() => {
-      this.updateIndicatorPositions();
+      this.updateContainerWidth();
+      window.addEventListener("resize", this.updateContainerWidth);
+      this.$el.addEventListener("scroll", this.handleScroll, true);
+
+      // Добавляем обработчики прокрутки для контейнеров работ
+      const jobContainers = this.$el.querySelectorAll(".job-lanes-container");
+      jobContainers.forEach((container) => {
+        container.addEventListener("scroll", this.handleScroll, true);
+      });
     });
   },
   beforeUnmount() {
     clearInterval(this.interval);
-    window.removeEventListener("resize", this.updateContainerWidth);
-    if (this.$refs.timelineWrapper?.parentNode) {
-      this.$refs.timelineWrapper.parentNode.removeEventListener(
-        "scroll",
-        this.handleScroll
-      );
+    if (this._resizeTimeout) {
+      clearTimeout(this._resizeTimeout);
     }
-    clearTimeout(this._resizeTimeout);
+    // Очищаем кэш
+    this._layoutCache.clear();
+    this._layoutCacheKey = null;
+
+    window.removeEventListener("resize", this.updateContainerWidth);
+    this.$el.removeEventListener("scroll", this.handleScroll, true);
+
+    // Удаляем обработчики прокрутки для контейнеров работ
+    const jobContainers = this.$el.querySelectorAll(".job-lanes-container");
+    jobContainers.forEach((container) => {
+      container.removeEventListener("scroll", this.handleScroll, true);
+    });
   },
 };
 </script>
-
 <style scoped>
-/* Стили для статусов */
-.timeline-status {
-  position: absolute; /* Позволяет ему растягиваться и быть поверх */
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #888;
-  font-size: 16px;
-  background-color: #1a1a1a;
-  z-index: 10;
-}
-
-/* ... (Ваши оригинальные стили) ... */
 .timeline-container {
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
+  overflow: hidden;
   height: 100%;
-  overflow: hidden; /* Добавлено, чтобы предотвратить двойные скроллы */
+  max-width: 100%;
+  width: 100%;
 }
 .timeline-controls {
-  flex-shrink: 0;
-  padding: 10px;
+  padding: 10px 20px;
   background-color: #20232a;
-  border-bottom: 1px solid #3c414d;
+  /* border-bottom: 1px solid #3c414d; */ /* Убираем горизонтальную линию */
+  flex-shrink: 0;
+  text-align: right;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 51px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.timeline-controls button {
+  background-color: #3a3f4b;
+  color: #ddd;
+  border: 1px solid #555;
+  padding: 5px 15px;
+  margin-left: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.timeline-controls button.active {
+  background-color: #61afef;
+  color: #fff;
+  border-color: #61afef;
 }
 .timeline-scroll-wrapper {
-  flex-grow: 1;
-  overflow-x: auto;
-  overflow-y: scroll; /* Для вертикальной прокрутки списка персонажей */
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
+
+.timeline-scroll-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+.timeline-scroll-wrapper::-webkit-scrollbar-track {
+  background: #20232a;
+}
+.timeline-scroll-wrapper::-webkit-scrollbar-thumb {
+  background-color: #4f5b6b;
+  border-radius: 4px;
+}
+
 .timeline-scroll-wrapper.is-locked {
-  overflow-y: hidden; /* Блокируем вертикальный скролл при фокусе */
+  overflow-y: auto;
 }
 .timeline-wrapper {
   position: relative;
-  min-height: 100%;
   display: flex;
   flex-direction: column;
+  min-height: 100%; /* Гарантирует минимальную высоту */
+  flex-grow: 1; /* Если используется Flexbox в .timeline-scroll-wrapper */
 }
-
-/* ЗАГОЛОВКИ ВРЕМЕНИ */
 .time-headers {
   position: sticky;
   top: 0;
-  height: 40px;
-  background-color: #1a1a1a;
-  border-bottom: 1px solid #3c414d;
-  z-index: 2;
+  background-color: #282c34;
+  z-index: 0;
   flex-shrink: 0;
+  height: 40px;
+  width: 100%;
+  /* Убедитесь, что контейнер заголовков занимает всю ширину и является контекстом для своих элементов */
+  box-sizing: border-box;
 }
 .time-header-item {
   position: absolute;
-  top: 5px;
+  color: #888;
   font-size: 12px;
-  color: #abb2bf;
   transform: translateX(-50%);
-  text-align: center;
+  border-left: 1px solid #444;
+  height: 100%;
+  padding-left: 4px;
 }
-
-/* ЛИНИЯ ТЕКУЩЕГО ВРЕМЕНИ */
 .current-time-line {
   position: absolute;
-  top: 40px;
+  top: 0;
   bottom: 0;
   left: 0;
   width: 2px;
   background-color: #ff6b6b;
-  z-index: 3;
-  pointer-events: none;
-  /* Для плавной анимации */
-  transition: transform 0.3s linear;
+  z-index: 1;
 }
-
-/* КОНТЕЙНЕР СТРОК ПЕРСОНАЖЕЙ */
 .character-rows-container {
   padding-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 15px; /* Разделение строк */
   flex-grow: 1;
   position: relative;
 }
-
-/* ГРУППА СТРОКИ ПЕРСОНАЖА */
 .character-row-group {
+  /* Удалены жесткие размеры высоты для гибкого вертикального ритма */
+  min-height: 120px; /* Сохраняем минимальную высоту для выравнивания */
   box-sizing: border-box;
   transition: all 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  /* FIX: УДАЛЕН ЛИШНИЙ padding-top, который ломал выравнивание */
-  padding: 0 10px;
+  justify-content: flex-start; /* ИЗМЕНЕНИЕ: Начинаем контент сверху, а не по центру */
+  padding-top: 0px; /* Добавляем небольшой отступ сверху для выравнивания */
+  /* КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Обрезаем содержимое, которое выходит за границы жесткой высоты */
   overflow: hidden;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 5;
-}
-
-.character-row-group.is-hidden {
-  opacity: 0;
-  pointer-events: none;
 }
 .character-row-group.is-selected {
-  z-index: 6;
-  background-color: #1a1a1a;
+  background-color: #32363e;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
-/* Бордер для разделения (вместо границы на самой группе) */
+.character-row-group.is-hidden {
+  height: 0px;
+  min-height: 0px !important;
+  overflow: hidden;
+  padding-top: 0;
+  padding-bottom: 0;
+  border: none;
+}
+
+/* Бордерлайны для обозначения границ таймлайнов персонажей */
 .character-border-line {
   position: absolute;
   left: 0;
   right: 0;
-  height: 135px; /* Синхронизируется с TOTAL_ROW_HEIGHT */
+  border-top: 1px solid #3c414d;
   border-bottom: 1px solid #3c414d;
+  background-color: rgba(60, 65, 77, 0.05);
+  z-index: 5;
   pointer-events: none;
-  transition: all 0.3s ease-in-out;
-}
-.character-border-line.active-character {
-  /* Бордер для активного персонажа */
-  border: 1px solid #4e9aef;
-  background-color: rgba(78, 154, 239, 0.1);
-}
-
-/* КОНТЕЙНЕРЫ РАБОТ */
-.job-lanes-container {
-  position: relative;
-  flex-grow: 1;
-  height: 100%;
-}
-.completed-jobs-indicators {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  pointer-events: none;
-  z-index: 2;
-}
-.completed-job-indicator {
-  position: absolute;
-  bottom: 0px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #4caf50;
-  transform: translateX(-50%);
-  pointer-events: all;
-  opacity: 0.8;
-  cursor: pointer;
-  transition: transform 0.3s linear;
-}
-.checkmark-icon-indicator {
-  width: 8px;
-  height: 8px;
-}
-
-/* Планетарные работы */
-.planets-lane {
-  margin-top: 5px;
-  margin-bottom: 5px;
-  display: flex;
-  flex-direction: column;
-}
-.planet-job-lane {
-  position: relative;
-  height: 12px;
-}
-.planet-job-bar {
-  position: absolute;
-  top: 0;
-  height: 10px;
-  border-radius: 2px;
   box-sizing: border-box;
-  overflow: hidden;
-  cursor: pointer;
-  z-index: 1;
+  opacity: 0.8;
 }
-.planet-job-fill {
+
+.character-border-line:first-child {
+  display: block; /* Показываем первую линию */
+}
+
+/* Стили для активного персонажа */
+.character-border-line.active-character {
+  border-top: 1px solid #c678dd;
+  border-bottom: 1px solid #c678dd;
+  background-color: rgba(198, 120, 221, 0.1);
+  opacity: 1;
+  box-shadow: 0 0 10px rgba(198, 120, 221, 0.3);
+}
+.job-lanes-container {
+  /* ИЗМЕНЕНИЕ: Уменьшаем или удаляем padding, который "сдвигает" полосы */
+  padding: 5px 0; /* Уменьшаем вертикальный padding */
+  /* max-height удален для разрешения динамического роста */
+  overflow-y: visible; /* Разрешаем показ всех работ */
+  position: relative;
+}
+
+.completed-jobs-indicators {
+  position: sticky;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  pointer-events: none;
+  z-index: 25;
+  /* Привязываем к левому краю строки персонажа */
+  transform: translateX(0);
+}
+
+.completed-job-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #333;
-  font-size: 10px;
-  font-weight: bold;
-  position: relative;
-}
-.planet-needs-attention {
-  border: 2px solid #ff6b6b;
-  animation: pulse-red 1s infinite alternate;
-}
-.attention-indicator {
-  position: absolute;
-  right: 5px;
-  color: #ff6b6b;
-  font-size: 12px;
-  font-weight: bold;
-}
-.planet-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 5px;
+  animation: pulse 2s infinite;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  /* Обеспечиваем видимость поверх всех элементов */
+  z-index: 30;
 }
 
-/* Индустриальные работы */
-.industry-jobs-lane {
+.completed-job-indicator:hover {
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.checkmark-icon-indicator {
+  width: 60%;
+  height: 60%;
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.job-lanes-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  background: linear-gradient(
+    to left,
+    rgba(40, 44, 52, 0.8) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.job-lanes-container:hover::before {
+  opacity: 1;
+}
+
+/* Скроллбары убраны - контейнеры теперь без скроллинга */
+
+.expanded-jobs-view {
+  padding: 20px;
+  color: #e0e0e0;
+  height: 100%;
+  position: relative;
+  overflow: visible;
+}
+
+/* Скроллбары убраны - контейнеры теперь без скроллинга */
+
+.focus-jobs-count {
+  position: sticky;
+  top: -100px;
+  background: linear-gradient(135deg, #32363e 0%, #2a2e36 100%);
+  color: #abb2bf;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  margin: -110px -10px 10px -10px;
+  border-radius: 6px;
+  text-align: center;
+  z-index: 2;
+  border: 1px solid #4a5160;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.expanded-job-item {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 15px;
+  align-items: center;
   margin-bottom: 5px;
 }
-.industry-job-lane {
+.job-bar-focus-view {
+  position: relative;
+  width: 100%;
+  height: 30px;
+  background-color: #20232a;
+  border-radius: 4px;
+}
+
+.job-bar-focus-view .completed-job-focus {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 6px !important;
+  animation: pulse 2s infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.job-bar-focus-view .job-bar-fill {
+  position: absolute;
+  height: 100%;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.job-name-in-bar {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+.job-time {
+  font-family: monospace;
+  color: #abb2bf;
+}
+.job-lane {
   position: relative;
   height: 12px;
   margin-bottom: 2px;
 }
-.industry-job-bar {
+.job-bar {
   position: absolute;
-  top: 0;
   height: 10px;
-  border-radius: 2px;
-  box-sizing: border-box;
-  overflow: hidden;
+  border-radius: 3px;
   cursor: pointer;
+  transition: all 0.1s ease-in-out;
+}
+
+.job-bar.has-overlap {
+  box-shadow: 0 0 8px 1px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Специальные стили для PI работ */
+.job-bar[data-activity-id="100"] {
+  border: 2px solid rgba(155, 89, 182, 0.3);
+  box-shadow: 0 0 4px rgba(155, 89, 182, 0.2);
+}
+
+.job-bar[data-activity-id="100"]:hover {
+  border-color: rgba(155, 89, 182, 0.6);
+  box-shadow: 0 0 8px rgba(155, 89, 182, 0.4);
+}
+
+/* Стили для завершенных PI работ */
+.completed-job-indicator[data-activity-id="100"] {
+  border: 2px solid rgba(155, 89, 182, 0.4);
+  box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+}
+
+.completed-job-indicator[data-activity-id="100"]:hover {
+  border-color: rgba(155, 89, 182, 0.7);
+  box-shadow: 0 4px 12px rgba(155, 89, 182, 0.5);
+}
+.job-bar-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkmark-icon {
+  width: 12px;
+  height: 12px;
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.checkmark-icon-expanded {
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5));
+}
+.tooltip {
+  position: fixed;
+  background-color: var(--tooltip-bg, #222);
+  color: #fff;
+  border: 1px solid #555;
+  padding: 10px;
+  border-radius: 5px;
+  z-index: 1000;
+  pointer-events: none;
+  font-size: 14px;
+  white-space: nowrap;
+  backdrop-filter: blur(2px);
+}
+.loading-indicator,
+.no-jobs-placeholder {
+  flex-grow: 1;
+  text-align: center;
+  padding-top: 50px;
+  font-size: 18px;
+  color: #888;
+}
+
+/* Стили для планет */
+.planets-lane {
+  position: relative;
+  margin-bottom: 4px;
+  /* border-bottom: 1px solid #3c414d; */ /* Убираем горизонтальную линию */
+  padding-bottom: 2px;
+}
+
+.planet-job-lane {
+  position: relative;
+  height: 10px;
+  margin-bottom: 2px;
+}
+
+.planet-job-bar {
+  position: absolute;
+  height: 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.1s ease-in-out;
   z-index: 1;
 }
-.industry-job-fill {
-  width: 100%;
+
+.planet-job-bar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(236, 236, 187, 0.3);
+}
+
+.planet-job-fill {
+  position: absolute;
   height: 100%;
+  width: 100%;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.planet-name {
+  color: #ececbb;
+  font-size: 11px;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80%;
+}
+
+.attention-indicator {
+  width: 12px;
+  height: 12px;
+  background-color: #ff6b6b;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: bold;
+  animation: blink 1s infinite;
+  box-shadow: 0 0 6px rgba(255, 107, 107, 0.5);
+  flex-shrink: 0;
+}
+
+.planet-needs-attention .planet-job-fill {
+  box-shadow: 0 0 4px rgba(255, 107, 107, 0.3);
+}
+
+/* Стили для индустриальных работ */
+.industry-jobs-lane {
+  position: relative;
+  margin-bottom: 4px;
+  /* border-bottom: 1px solid #3c414d; */ /* Убираем горизонтальную линию */
+  padding-bottom: 2px;
+}
+
+.industry-job-lane {
+  position: relative;
+  height: 10px;
+  margin-bottom: 2px;
+}
+
+.industry-job-bar {
+  position: absolute;
+  height: 10px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  z-index: 1;
+}
+
+.industry-job-bar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.industry-job-fill {
+  position: absolute;
+  height: 100%;
+  width: 100%;
   border-radius: 2px;
   display: flex;
   align-items: center;
@@ -1506,128 +1875,40 @@ export default {
 }
 
 .industry-job-high-priority {
-  box-shadow: 0 0 4px rgba(244, 67, 54, 0.8);
+  box-shadow: 0 0 4px rgba(244, 67, 54, 0.5);
+  border: 1px solid rgba(244, 67, 54, 0.3);
 }
 
-/* Обычные работы */
-.job-lane {
-  position: relative;
-  height: 12px;
-  margin-bottom: 2px;
-}
-.job-bar {
-  position: absolute;
-  top: 0;
-  height: 12px;
-  border-radius: 2px;
-  box-sizing: border-box;
-  overflow: hidden;
-  cursor: pointer;
-  z-index: 1;
-  transition: box-shadow 0.2s;
-}
-.job-bar:hover {
-  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
-}
-.job-bar.has-overlap {
-  opacity: 0.7;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-.job-bar-fill {
-  width: 100%;
-  height: 100%;
-  border-radius: 2px;
-  background-color: #7f8c8d;
-}
-
-/* РАСШИРЕННЫЙ ВИД */
-.expanded-jobs-view {
-  padding: 10px 0;
-  overflow-y: auto;
-  flex-grow: 1;
-  max-height: 100%;
-}
-.focus-jobs-count {
-  padding: 5px 10px;
-  color: #abb2bf;
-  font-size: 12px;
-}
-.expanded-job-item {
-  display: grid;
-  grid-template-columns: 1fr 100px;
-  gap: 15px;
-  align-items: center;
-  margin-bottom: 5px;
-}
-.job-bar-focus-view {
-  position: relative;
-  width: 100%;
-  height: 30px;
-  background-color: #20232a;
-  border-radius: 4px;
-}
-.job-bar-focus-view .job-bar-fill {
-  position: absolute;
-  height: 100%;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  padding: 0 10px;
-  box-sizing: border-box;
-  overflow: hidden;
-  white-space: nowrap;
-  justify-content: space-between;
-}
-.job-bar-focus-view .job-bar-fill.completed-job-focus {
-  background-color: #4caf50 !important;
-  opacity: 0.8;
-  justify-content: center;
-}
-.job-name-in-bar {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-}
-.job-time {
-  font-family: monospace;
-  color: #abb2bf;
-}
-.checkmark-icon-expanded {
-  width: 20px;
-  height: 20px;
-}
-
-/* ТУЛТИП */
-.tooltip {
-  position: fixed;
-  background-color: var(--tooltip-bg, #333);
-  color: #1a1a1a;
-  padding: 10px;
-  border-radius: 4px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  pointer-events: none;
-  transform: translate(-50%, -100%);
-  z-index: 1000;
-  min-width: 250px;
-  box-sizing: border-box;
-  font-size: 13px;
-  line-height: 1.4;
-}
-.tooltip strong {
-  color: #1a1a1a;
-  font-weight: bold;
-}
-.tooltip small {
-  color: #444;
-}
-
-@keyframes pulse-red {
-  from {
-    box-shadow: 0 0 0 0px rgba(255, 0, 0, 0.4);
+/* Анимация мигания для индикатора внимания */
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+    transform: scale(1);
   }
-  to {
-    box-shadow: 0 0 0 6px rgba(255, 0, 0, 0);
+  25%,
+  75% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+}
+
+/* Анимация пульсации для завершенных работ */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.9;
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
   }
 }
 </style>
