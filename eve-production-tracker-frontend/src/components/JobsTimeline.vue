@@ -336,6 +336,10 @@ export default {
     now: new Date(),
     interval: null,
     containerWidth: 1000,
+    // Константы для вертикального ритма
+    CARD_HEIGHT: 120,
+    GAP_HEIGHT: 15,
+    TOTAL_ROW_HEIGHT: 135, // CARD_HEIGHT + GAP_HEIGHT
     // Оптимизация обновлений
     _lastUpdateTime: 0,
     _updateThrottle: 5000, // Обновляем максимум раз в 5 секунд
@@ -526,8 +530,15 @@ export default {
           border: "none",
         };
       }
-      // Убираем жесткие размеры - теперь высота определяется содержимым + gap контейнера
-      return {};
+      // Стандартный вид: устанавливаем высоту, чтобы она соответствовала высоте карточки + gap
+      return {
+        height: `${this.TOTAL_ROW_HEIGHT}px`,
+        minHeight: `${this.TOTAL_ROW_HEIGHT}px`,
+        maxHeight: `${this.TOTAL_ROW_HEIGHT}px`,
+        // Добавляем разделитель, который был удален из CSS
+        borderBottom: "1px solid #3c414d",
+        margin: "0", // Убеждаемся, что нет лишних маржинов
+      };
     },
 
     getCharacterBorderStyle(characterId, index) {
@@ -545,14 +556,13 @@ export default {
           // Свернутый персонаж - не добавляем высоту
           continue;
         } else {
-          // Стандартная высота персонажа теперь определяется содержимым + gap контейнера
-          // Используем базовую высоту 120px + gap 15px = 135px
-          topPosition += 135;
+          // Используем константу для стандартной высоты персонажа
+          topPosition += this.TOTAL_ROW_HEIGHT;
         }
       }
 
       // Определяем высоту текущего персонажа
-      let characterHeight = 135; // Базовая высота (120px + 15px gap)
+      let characterHeight = this.TOTAL_ROW_HEIGHT; // Используем константу
       if (this.selectedCharacterId === characterId) {
         characterHeight = this.focusRowHeight;
       } else if (
@@ -1433,7 +1443,6 @@ export default {
   padding-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 15px; /* Совпадает с gap в .characters-list */
   flex-grow: 1;
   position: relative;
 }
