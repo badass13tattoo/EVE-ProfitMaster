@@ -1452,7 +1452,8 @@ export default {
   transition: all 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start; /* ИЗМЕНЕНИЕ: Начинаем контент сверху, а не по центру */
+  padding-top: 10px; /* Добавляем небольшой отступ сверху для выравнивания */
   /* КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Обрезаем содержимое, которое выходит за границы жесткой высоты */
   overflow: hidden;
 }
@@ -1498,9 +1499,10 @@ export default {
   box-shadow: 0 0 10px rgba(198, 120, 221, 0.3);
 }
 .job-lanes-container {
-  padding: 15px 0;
-  max-height: none;
-  overflow: visible;
+  /* ИЗМЕНЕНИЕ: Уменьшаем или удаляем padding, который "сдвигает" полосы */
+  padding: 5px 0; /* Уменьшаем вертикальный padding */
+  max-height: 125px; /* Доступное пространство: 135px (TOTAL_ROW_HEIGHT) - 10px (padding) = 125px */
+  overflow-y: hidden; /* Оставляем для надежности */
   position: relative;
 }
 
