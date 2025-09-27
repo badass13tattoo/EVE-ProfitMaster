@@ -1367,11 +1367,10 @@ export default {
 </script>
 <style scoped>
 .timeline-container {
-  flex-grow: 1;
+  height: 100%; /* Убедиться, что он занимает всю высоту родителя */
   display: flex;
-  flex-direction: column;
+  flex-direction: column; /* Важно: вертикальная компоновка элементов */
   overflow: hidden;
-  height: 100%;
   max-width: 100%;
   width: 100%;
 }
@@ -1405,9 +1404,9 @@ export default {
   border-color: #61afef;
 }
 .timeline-scroll-wrapper {
-  position: relative;
-  display: flex;
-  flex-direction: column;
+  flex: 1; /* 🔑 Ключ: Занимать все оставшееся вертикальное пространство */
+  overflow: auto; /* Разрешить прокрутку в обе стороны (вертикально/горизонтально) */
+  position: relative; /* Необходимо для позиционирования внутренних элементов */
 }
 
 .timeline-scroll-wrapper::-webkit-scrollbar {
