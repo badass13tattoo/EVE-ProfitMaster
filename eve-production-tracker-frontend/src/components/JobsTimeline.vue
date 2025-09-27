@@ -1443,9 +1443,9 @@ export default {
 .time-headers {
   position: sticky;
   top: 0;
-  height: 20px; /* 🔑 Устанавливаем целевую высоту */
-  min-height: 20px;
-  max-height: 20px;
+  height: 22px; /* 🔑 Устанавливаем целевую высоту */
+  min-height: 22px;
+  max-height: 22px;
   flex-shrink: 0; /* 🔑 Гарантируем, что он не сжимается */
   z-index: 2;
   background-color: #1a1a1a;
@@ -1489,7 +1489,7 @@ export default {
   z-index: 1;
 }
 .character-rows-container {
-  padding-top: 10px;
+  padding-top: 0px;
   display: flex;
   flex-direction: column;
   flex-grow: 1; /* Позволяет ему занимать оставшееся место */
