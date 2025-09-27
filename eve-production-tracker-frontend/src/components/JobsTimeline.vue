@@ -1443,9 +1443,9 @@ export default {
 .time-headers {
   position: sticky;
   top: 0;
-  height: 40px; /* 🔑 Устанавливаем целевую высоту */
-  min-height: 40px;
-  max-height: 40px;
+  height: 20px; /* 🔑 Устанавливаем целевую высоту */
+  min-height: 20px;
+  max-height: 20px;
   flex-shrink: 0; /* 🔑 Гарантируем, что он не сжимается */
   z-index: 2;
   background-color: #1a1a1a;
