@@ -1426,21 +1426,18 @@ export default {
 }
 .timeline-wrapper {
   position: relative;
+  min-height: 100%;
   display: flex;
-  flex-direction: column;
-  min-height: 100%; /* Гарантирует минимальную высоту */
-  flex-grow: 1; /* Если используется Flexbox в .timeline-scroll-wrapper */
+  flex-direction: column; /* ЭТО КРИТИЧНО! Устанавливает вертикальную компоновку */
 }
 .time-headers {
   position: sticky;
   top: 0;
-  background-color: #282c34;
-  z-index: 0;
-  flex-shrink: 0;
-  height: 40px;
-  width: 100%;
-  /* Убедитесь, что контейнер заголовков занимает всю ширину и является контекстом для своих элементов */
-  box-sizing: border-box;
+  height: 40px; /* 🔑 КЛЮЧЕВОЙ FIX: Задает высоту 40px */
+  background-color: #1a1a1a;
+  border-bottom: 1px solid #3c414d;
+  z-index: 2;
+  flex-shrink: 0; /* 🔑 КЛЮЧЕВОЙ FIX: Запрещает Flexbox сжимать/растягивать его */
 }
 .time-header-item {
   position: absolute;
@@ -1464,7 +1461,8 @@ export default {
   padding-top: 10px;
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
+  flex-grow: 1; /* Позволяет ему занимать оставшееся место */
+  overflow-y: auto; /* Если нужно, чтобы он прокручивался */
   position: relative;
 }
 .character-row-group {
