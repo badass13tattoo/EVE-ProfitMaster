@@ -26,9 +26,19 @@
       <div
         v-else
         class="timeline-wrapper"
+        ref="timelineWrapper"
         :style="{ width: timelineWidth + 'px' }"
       >
-        <div class="time-headers"></div>
+        <div class="time-headers">
+          <div
+            v-for="marker in timeScale"
+            :key="marker.timestamp"
+            class="time-header-item"
+            :style="{ left: marker.left + 'px' }"
+          >
+            <span>{{ marker.label }}</span>
+          </div>
+        </div>
         <div class="current-time-line"></div>
 
         <div v-if="isLoading" class="loading-indicator">Data loading...</div>
