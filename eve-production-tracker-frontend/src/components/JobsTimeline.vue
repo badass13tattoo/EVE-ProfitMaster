@@ -46,8 +46,6 @@
         <div v-else-if="!hasJobs" class="no-jobs-placeholder">
           No jobs to display.
         </div>
-        <div v-else class="character-rows-container"></div>
-        <div class="current-time-line"></div>
         <div class="character-rows-container">
           <!-- Бордерлайны для разделения персонажей -->
           <div
@@ -1489,7 +1487,7 @@ export default {
   z-index: 1;
 }
 .character-rows-container {
-  padding-top: 0px;
+  padding-top: 2px;
   display: flex;
   flex-direction: column;
   flex-grow: 1; /* Позволяет ему занимать оставшееся место */
